@@ -9,8 +9,7 @@ const principles: { icon: IconName; title: string; text: string }[] = [
 
 export function Manifesto() {
   return (
-    <section aria-label="Manifesto" className="relative z-10 py-24 md:py-36">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-ink/80 to-ink/95" />
+    <section aria-label="Manifesto" className="relative z-10 pb-24 pt-8 md:pb-32">
       <div className="container-x relative">
         <ScrollWords
           className="display max-w-5xl text-[clamp(1.9rem,6.6vw,4.4rem)] leading-[1.08]"

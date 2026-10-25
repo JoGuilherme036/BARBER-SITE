@@ -5,8 +5,7 @@ type EventName =
   | 'call_click'
   | 'route_click'
   | 'booking_step_view'
-  | 'booking_confirmed'
-  | 'experience_3d_open';
+  | 'booking_confirmed';
 
 export function track(event: EventName, props: Record<string, string | number> = {}) {
   const w = window as unknown as { dataLayer?: unknown[]; plausible?: (e: string, o: unknown) => void };

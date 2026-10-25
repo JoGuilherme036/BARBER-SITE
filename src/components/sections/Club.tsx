@@ -30,7 +30,7 @@ export function Club() {
   if (webgl.current === null && typeof document !== 'undefined') webgl.current = hasWebGL();
 
   return (
-    <section aria-labelledby="clube-title" className="relative z-10 overflow-hidden rounded-[2rem] slab py-20 md:rounded-[3rem] md:py-28">
+    <section aria-labelledby="clube-title" className="relative z-10 overflow-hidden py-24 md:py-32">
       <div className="container-x grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
         <div ref={stage} className="relative mx-auto aspect-square w-full max-w-[30rem]">
           <div className="absolute inset-[12%] rounded-full bg-[radial-gradient(circle,rgb(var(--brass)/0.28),transparent_65%)] blur-2xl" />

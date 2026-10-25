@@ -10,7 +10,6 @@ import Home from '@/pages/Home';
 
 const Booking = lazy(() => import('@/pages/Booking'));
 const ManageBooking = lazy(() => import('@/pages/ManageBooking'));
-const Experience3D = lazy(() => import('@/pages/Experience3D'));
 const Privacy = lazy(() => import('@/pages/Privacy'));
 const NotFound = lazy(() => import('@/pages/NotFound'));
 
@@ -33,7 +32,7 @@ function PageFallback() {
 function Shell() {
   const { reduced } = useMotionPref();
   const { pathname } = useLocation();
-  const immersive = pathname.startsWith('/agendar') || pathname.startsWith('/experiencia-3d');
+  const immersive = pathname.startsWith('/agendar');
   return (
     <MotionConfig reducedMotion={reduced ? 'always' : 'never'}>
       <a href="#conteudo" className="sr-only z-[70] rounded-full bg-brass px-4 py-2 text-ink focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
@@ -51,7 +50,6 @@ function Shell() {
           <Route path="/" element={<Home />} />
           <Route path="/agendar" element={<Booking />} />
           <Route path="/meu-agendamento" element={<ManageBooking />} />
-          <Route path="/experiencia-3d" element={<Experience3D />} />
           <Route path="/privacidade" element={<Privacy />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

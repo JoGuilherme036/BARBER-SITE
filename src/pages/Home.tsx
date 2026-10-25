@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { ScrollFilm } from '@/components/background/ScrollFilm';
-import { Hero } from '@/components/sections/Hero';
-import { Interlude } from '@/components/sections/Interlude';
+import { Intro } from '@/components/sections/Intro';
+import { LiveBoard } from '@/components/sections/LiveBoard';
 import { Manifesto } from '@/components/sections/Manifesto';
 import { Services } from '@/components/sections/Services';
 import { Ritual } from '@/components/sections/Ritual';
@@ -16,8 +15,8 @@ import { Faq } from '@/components/sections/Faq';
 import { FinalCta } from '@/components/sections/FinalCta';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
-// Narrative order follows the film: arrival → chair → counter → tools close-up.
-// Transparent "windows" (Interlude, Space, FinalCta) let the film take the stage between sheets.
+// The film plays only in the pinned Intro; everything after it sits on solid ground.
+// The closing scene reuses the film's last frame so the page ends where the video does.
 export default function Home() {
   useDocumentTitle();
   const { hash } = useLocation();
@@ -30,25 +29,20 @@ export default function Home() {
   }, [hash]);
 
   return (
-    <>
-      <ScrollFilm />
-      <main id="conteudo" className="relative">
-        <Hero />
-        <Interlude chapter="II" label="A cadeira" lines={['Toda noite começa', <span key="b" className="brass-text">com uma cadeira vazia.</span>]} />
-        <Manifesto />
-        <Services />
-        <Interlude chapter="✦" label="Entre um corte e outro" lines={['Ferramentas afiadas,', <span key="b" className="brass-text">tempo de sobra.</span>]} height="min-h-[70svh]" />
-        <Ritual />
-        <Team />
-        <Styles />
-        <Space />
-        <Club />
-        <div className="h-[30svh]" aria-hidden="true" />
-        <Location />
-        <Reviews />
-        <Faq />
-        <FinalCta />
-      </main>
-    </>
+    <main id="conteudo" className="relative">
+      <Intro />
+      <LiveBoard />
+      <Manifesto />
+      <Services />
+      <Ritual />
+      <Team />
+      <Styles />
+      <Space />
+      <Club />
+      <Location />
+      <Reviews />
+      <Faq />
+      <FinalCta />
+    </main>
   );
 }

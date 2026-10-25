@@ -33,7 +33,7 @@ function PinnedRitual() {
   const x = useTransform(scrollYProgress, [0.05, 0.95], ['0%', '-58%']);
   const bar = useTransform(scrollYProgress, [0.05, 0.95], [0, 1]);
   return (
-    <section id="ritual" ref={ref} aria-labelledby="ritual-title" className="relative z-10 h-[300vh] scroll-mt-20 rounded-t-[2rem] bg-ink/95 md:rounded-t-[3rem]">
+    <section id="ritual" ref={ref} aria-labelledby="ritual-title" className="relative z-10 h-[300vh] scroll-mt-20 bg-ink">
       <div className="sticky top-0 flex h-[100svh] flex-col justify-center overflow-hidden">
         <div className="container-x" id="ritual-title">
           <SectionHeading chapter="IV" label="O ritual" lines={['Quatro tempos,', <em key="e" className="brass-text">nenhuma pressa.</em>]} />
@@ -63,7 +63,7 @@ function SnapRitual() {
     if (card) setActive(Math.round(el.scrollLeft / (card.offsetWidth + 16)));
   };
   return (
-    <section id="ritual" aria-labelledby="ritual-title" className="relative z-10 scroll-mt-20 rounded-t-[2rem] bg-ink/95 py-20">
+    <section id="ritual" aria-labelledby="ritual-title" className="relative z-10 scroll-mt-20 bg-ink py-20">
       <div className="container-x" id="ritual-title">
         <SectionHeading chapter="IV" label="O ritual" lines={['Quatro tempos,', <em key="e" className="brass-text">nenhuma pressa.</em>]} />
       </div>

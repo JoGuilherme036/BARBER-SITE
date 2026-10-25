@@ -7,7 +7,7 @@ import { Icon } from '../ui/Icon';
 export function Faq() {
   const [open, setOpen] = useState<number | null>(0);
   return (
-    <section aria-labelledby="faq-title" className="relative z-10 rounded-b-[2rem] bg-ink/95 pb-24 pt-4 md:rounded-b-[3rem] md:pb-32">
+    <section aria-labelledby="faq-title" className="relative z-10 rounded-b-[2rem] bg-ink-2 pb-24 pt-4 md:rounded-b-[3rem] md:pb-32">
       <div className="container-x grid gap-10 lg:grid-cols-[1fr_1.4fr] lg:gap-20">
         <div id="faq-title">
           <SectionHeading chapter="X" label="Dúvidas" lines={['Antes de', <em key="e" className="brass-text">sentar.</em>]} />

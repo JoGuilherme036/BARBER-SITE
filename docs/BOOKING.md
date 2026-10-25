@@ -1,5 +1,11 @@
 # Agendamento — regras e backend
 
+## Atalhos a partir da página inicial
+
+- **Agenda ao vivo**: `/agendar?servico=…&dia=AAAA-MM-DD&hora=HH:MM` abre direto na etapa de dados com "primeiro disponível"; o servidor revalida o horário na confirmação.
+- **Comanda**: os serviços marcados na página inicial ficam no mesmo rascunho do agendamento; `/agendar?de=comanda` começa na escolha do barbeiro.
+- **Barbeiro / serviço**: `?barbeiro=…` e `?servico=…` pré-selecionam a escolha.
+
 ## Fluxo
 
 1. **Serviços**: seleção múltipla. Um combo substitui os serviços que já inclui, e nada é cobrado duas vezes (`summarize`).
@@ -9,7 +15,7 @@
 5. **Revisão**: aceite obrigatório da política.
 6. **Confirmação**: só depois da resposta do servidor. Mostra código, .ics, Google Agenda, WhatsApp, rota, compartilhar e gerenciar.
 
-O rascunho fica em `sessionStorage`: sobrevive a recarregar a página, voltar e visitar o 3D.
+O rascunho é um estado compartilhado (página inicial e agendamento) salvo em `sessionStorage`: sobrevive a recarregar a página e ao botão voltar.
 
 ## Garantias
 

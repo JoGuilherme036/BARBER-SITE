@@ -94,7 +94,7 @@ function ProCard({ pro, next, index }: { pro: Professional; next?: string; index
 export function Team() {
   const next = useNextSlots();
   return (
-    <section id="equipe" aria-labelledby="equipe-title" className="relative z-10 scroll-mt-20 bg-ink/95 pb-24 pt-8 md:pb-32">
+    <section id="equipe" aria-labelledby="equipe-title" className="relative z-10 scroll-mt-20 bg-ink py-20 md:py-28">
       <div className="container-x" id="equipe-title">
         <SectionHeading chapter="V" label="Barbeiros" lines={['As mãos', <em key="e" className="brass-text">por trás da navalha.</em>]} intro="Escolha quem vai te atender ou deixe com o primeiro horário disponível." />
       </div>

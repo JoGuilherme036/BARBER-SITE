@@ -31,14 +31,14 @@ export function Location() {
   };
 
   return (
-    <section id="local" aria-labelledby="local-title" className="relative z-10 scroll-mt-20 rounded-t-[2rem] slab pb-20 pt-20 md:rounded-t-[3rem] md:pb-28 md:pt-28">
+    <section id="local" aria-labelledby="local-title" className="relative z-10 scroll-mt-20 rounded-t-[2rem] bg-ink-2 pb-20 pt-20 md:rounded-t-[3rem] md:pb-28 md:pt-28">
       <div className="container-x" id="local-title">
         <SectionHeading chapter="IX" label="Localização" lines={['Venha', <em key="e" className="brass-text">sentar com a gente.</em>]} />
       </div>
 
       <div className="container-x mt-12 grid gap-4 lg:grid-cols-[1.1fr_1fr] lg:gap-6">
         <Reveal className="flex flex-col gap-4">
-          <div className="rounded-3xl border hairline bg-ink/70 p-6 md:p-8">
+          <div className="rounded-3xl border hairline bg-ink p-6 md:p-8">
             <p className="flex items-center gap-3" aria-live="polite">
               <span className="relative flex h-3 w-3">
                 {status.open && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />}
@@ -68,7 +68,7 @@ export function Location() {
             </div>
           </div>
 
-          <div className="rounded-3xl border hairline bg-ink/70 p-6 md:p-8">
+          <div className="rounded-3xl border hairline bg-ink p-6 md:p-8">
             <p className="eyebrow">Horários</p>
             <dl className="mt-4 divide-y divide-brass/10">
               {order.map((d) => (
@@ -94,7 +94,7 @@ export function Location() {
                 <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/50 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 flex flex-col items-start gap-3 p-6">
                   <p className="text-sm text-muted">O mapa é carregado do Google somente se você tocar abaixo.</p>
-                  <button onClick={() => setShowMap(true)} className="inline-flex min-h-12 items-center gap-2 rounded-full border border-brass/60 bg-ink/70 px-5 text-[14px] font-semibold text-brass-light">
+                  <button onClick={() => setShowMap(true)} className="inline-flex min-h-12 items-center gap-2 rounded-full border border-brass/60 bg-ink px-5 text-[14px] font-semibold text-brass-light">
                     <Icon name="route" className="h-[18px] w-[18px]" /> Mostrar mapa
                   </button>
                 </div>
@@ -125,7 +125,7 @@ function RouteBtn({ href, label, icon }: { href: string; label: string; icon: Ic
 function Contact({ href, icon, label, onClick }: { href: string; icon: IconName; label: string; onClick?: () => void }) {
   const external = href.startsWith('http');
   return (
-    <a href={href} onClick={onClick} className="flex min-h-14 items-center justify-center gap-2 rounded-2xl border hairline bg-ink/60 text-[13px] font-medium transition-colors hover:border-brass/60" {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
+    <a href={href} onClick={onClick} className="flex min-h-14 items-center justify-center gap-2 rounded-2xl border hairline bg-ink text-[13px] font-medium transition-colors hover:border-brass/60" {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
       <Icon name={icon} className="h-[18px] w-[18px] text-brass" />
       {label}
     </a>

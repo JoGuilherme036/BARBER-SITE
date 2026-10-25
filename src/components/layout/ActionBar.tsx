@@ -2,6 +2,9 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { site } from '@/config/site';
+import { summarize } from '@/booking/availability';
+import { useDraft } from '@/booking/draft';
+import { formatPrice } from '@/lib/format';
 import { routeLink } from '@/lib/maps';
 import { whatsappLink, waMessages } from '@/lib/whatsapp';
 import { track } from '@/lib/analytics';
@@ -11,11 +14,13 @@ import { Icon, type IconName } from '../ui/Icon';
 export function ActionBar() {
   const { pathname } = useLocation();
   const [visible, setVisible] = useState(pathname !== '/');
-  const hiddenRoute = pathname.startsWith('/agendar') || pathname.startsWith('/experiencia-3d');
+  const hiddenRoute = pathname.startsWith('/agendar');
+  const { draft } = useDraft();
+  const order = summarize(draft.serviceIds);
 
   useEffect(() => {
     if (pathname !== '/') return setVisible(true);
-    const on = () => setVisible(window.scrollY > window.innerHeight * 0.75);
+    const on = () => setVisible(window.scrollY > window.innerHeight * 0.4);
     on();
     window.addEventListener('scroll', on, { passive: true });
     return () => window.removeEventListener('scroll', on);
@@ -45,11 +50,17 @@ export function ActionBar() {
         >
           <div className="flex items-center gap-1.5 rounded-full border hairline bg-ink/90 p-1.5 shadow-[0_20px_50px_-20px_rgb(0_0_0/0.9)] backdrop-blur-md">
             <Link
-              to="/agendar"
+              to={order.services.length ? '/agendar?de=comanda' : '/agendar'}
               onClick={() => track('cta_book_click', { from: 'action_bar' })}
-              className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-brass px-4 text-[14px] font-semibold text-ink active:scale-[0.97]"
+              className="flex min-h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-full bg-brass px-4 text-[14px] font-semibold text-ink active:scale-[0.97]"
             >
-              <Icon name="calendar" className="h-[18px] w-[18px]" /> Agendar
+              <Icon name="calendar" className="h-[18px] w-[18px] shrink-0" />
+              <span>Agendar</span>
+              {order.services.length > 0 && (
+                <span className="rounded-full bg-ink px-2 py-0.5 text-[11px] font-bold tabular-nums text-brass-light" aria-label={`${order.services.length} serviços, ${formatPrice(order.priceCents)}`}>
+                  {order.services.length}
+                </span>
+              )}
             </Link>
             <Action href={whatsappLink(waMessages.general())} icon="whatsapp" label="WhatsApp" onClick={() => track('whatsapp_click', { from: 'action_bar' })} />
             <Action href={routeLink()} icon="route" label="Rota" onClick={() => track('route_click', { from: 'action_bar' })} />

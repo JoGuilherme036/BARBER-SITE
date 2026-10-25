@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
-// Booking draft kept in sessionStorage so a refresh, the 3D detour or the back button
-// never loses what the visitor already chose. No sensitive data beyond the form fields.
+// Booking draft shared by the home page (comanda, live board) and the booking flow.
+// Kept in sessionStorage so a refresh or the back button never loses what the visitor chose.
 
 export type Draft = {
   serviceIds: string[];
@@ -39,16 +39,27 @@ function load(): Draft {
   return emptyDraft();
 }
 
+let state: Draft = load();
+const listeners = new Set<() => void>();
+
+function set(next: Draft) {
+  state = next;
+  try {
+    sessionStorage.setItem(KEY, JSON.stringify(state));
+  } catch {
+    /* storage unavailable */
+  }
+  listeners.forEach((l) => l());
+}
+
+const subscribe = (l: () => void) => {
+  listeners.add(l);
+  return () => listeners.delete(l);
+};
+
 export function useDraft() {
-  const [draft, setDraft] = useState<Draft>(load);
-  useEffect(() => {
-    try {
-      sessionStorage.setItem(KEY, JSON.stringify(draft));
-    } catch {
-      /* storage unavailable */
-    }
-  }, [draft]);
-  const update = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
-  const reset = () => setDraft(emptyDraft());
+  const draft = useSyncExternalStore(subscribe, () => state);
+  const update = useCallback((patch: Partial<Draft>) => set({ ...state, ...patch }), []);
+  const reset = useCallback(() => set(emptyDraft()), []);
   return { draft, update, reset };
 }

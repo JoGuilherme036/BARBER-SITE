@@ -106,3 +106,17 @@
 .kb-open .action-bar {
   display: none;
 }
+
+/* Order slip with torn edges; the drop shadow lives on the parent because the mask clips box-shadow. */
+.comanda {
+  filter: drop-shadow(0 24px 40px rgb(0 0 0 / 0.55));
+}
+.comanda-paper {
+  --tooth: 12px;
+  -webkit-mask:
+    radial-gradient(circle at 50% 0, transparent 5px, #000 5.5px) top / var(--tooth) 51% repeat-x,
+    radial-gradient(circle at 50% 100%, transparent 5px, #000 5.5px) bottom / var(--tooth) 51% repeat-x;
+  mask:
+    radial-gradient(circle at 50% 0, transparent 5px, #000 5.5px) top / var(--tooth) 51% repeat-x,
+    radial-gradient(circle at 50% 100%, transparent 5px, #000 5.5px) bottom / var(--tooth) 51% repeat-x;
+}

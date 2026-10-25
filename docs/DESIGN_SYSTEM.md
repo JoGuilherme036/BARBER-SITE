@@ -25,7 +25,15 @@ Texto escuro sobre latão nos botões primários; nunca latão sobre latão.
 
 ## Estrutura narrativa
 
-As seções são "lâminas" (`.slab`, bordas arredondadas) sobre o vídeo, alternando com "janelas" transparentes (`Interlude`, `Space`, `FinalCta`) onde o vídeo é o protagonista. Os capítulos são numerados em romano (I–XI), como num livro.
+O vídeo é exclusivo da introdução (seção fixa de ~2,6 telas no celular e 3 no desktop): o título fica sobre uma camada escura própria, passa a vez para duas legendas e a imagem escurece até o fundo da página antes do conteúdo começar. Daí em diante tudo fica sobre fundo sólido, alternando o preto principal com "lâminas" (`.slab`, bordas arredondadas) em Serviços, Espaço e Localização/Dúvidas. O epílogo reaproveita o último quadro do vídeo como imagem parada, fechando o ciclo.
+
+Os capítulos são numerados em romano (I–XI). Cada título de capítulo tem o fio e o brilho de uma luminária pendente, o mesmo elemento das luzes âmbar do vídeo.
+
+## Elementos de assinatura
+
+- **Comanda**: recibo em marfim com bordas picotadas, a única área clara do site; lista os serviços escolhidos, tempo e total.
+- **Agenda ao vivo**: horários em placas com a "dobra" central de um painel de letras, que viram ao trocar o serviço.
+- **Poltrona com pontos**: foto da cadeira com quatro pontos tocáveis que explicam cada parte.
 
 ## Componentes base (`src/components/ui`)
 
@@ -40,6 +48,6 @@ As seções são "lâminas" (`.slab`, bordas arredondadas) sobre o vídeo, alter
 | Troca de etapa do agendamento | 280 ms, ±36 px com direção | expo-out |
 | Entrada de bloco | 700 ms, 18 px | expo-out |
 | Títulos | máscara por linha, 900 ms, stagger de 80 ms | expo-out |
-| Vídeo de fundo | interpolação de 14% por frame até a posição do scroll | — |
+| Vídeo da introdução | interpolação de 16% por frame até a posição do scroll | — |
 
-Sem scroll-jacking, sem cursor customizado e sem parallax forte no celular. Com `prefers-reduced-motion` ou com o botão "Reduzir animações" no rodapé, o vídeo vira um poster estático, a medalha fica parada e as transições perdem o deslocamento.
+Sem scroll-jacking, sem cursor customizado e sem parallax forte no celular. Com `prefers-reduced-motion` ou com o botão "Reduzir animações" no rodapé, a introdução deixa de ser fixa e mostra um poster estático, a medalha fica parada e as transições perdem o deslocamento.

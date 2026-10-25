@@ -1,6 +1,6 @@
 # RB Barbearia — site com vídeo no scroll, 3D e agendamento
 
-Site mobile-first de barbearia no conceito **"Ateliê noturno"**: um vídeo de fundo que avança conforme a rolagem, seções editoriais com motion design, uma medalha 3D (Three.js + React Three Fiber + Drei), uma cadeira 3D interativa (Babylon.js) e um fluxo de agendamento completo.
+Site mobile-first de barbearia no conceito **"Ateliê noturno"**: uma introdução em que o vídeo avança conforme a rolagem, uma agenda ao vivo, um cardápio de serviços com comanda, seções editoriais com motion design, uma medalha 3D (Three.js + React Three Fiber + Drei) e um fluxo de agendamento completo.
 
 > ⚠️ **Versão de demonstração.** Nome, endereço, telefone, preços, equipe e planos são fictícios e estão marcados com `DEMO` em `src/config/`. Sem o Supabase configurado, as reservas ficam salvas só no navegador de quem testa.
 
@@ -17,10 +17,11 @@ npm test           # testes unitários (disponibilidade, horários, adaptador de
 
 | Área | Onde | Destaques |
 |---|---|---|
-| Vídeo no scroll | `src/components/background/ScrollFilm.tsx` | Vídeo convertido em 96 quadros WebP (vertical no celular, horizontal no desktop), carregamento progressivo, sem sequestrar o scroll |
-| Página inicial | `src/pages/Home.tsx` + `src/components/sections/` | Hero, manifesto, serviços, ritual (fixado no desktop), barbeiros, estilos com lightbox, espaço, clube, localização, dúvidas, CTA final |
-| Medalha 3D | `src/components/three/Medallion.tsx` | R3F + Drei, gravação desenhada em canvas com a fonte da marca, gira com a rolagem; só carrega perto da seção |
-| Cadeira 3D | `src/pages/Experience3D.tsx` + `src/babylon/chairScene.ts` | Rota isolada `/experiencia-3d`, câmera com limites e pontos de vista, descarta a engine ao sair |
+| Introdução com vídeo | `src/components/sections/Intro.tsx` + `background/ScrollFilm.tsx` | O vídeo toca só aqui, fixo na tela enquanto se rola: título legível sobre uma camada escura, duas legendas (a cadeira, a bancada), marcador de capítulos e botão "Pular introdução". Quadros WebP verticais no celular e horizontais no desktop |
+| Agenda ao vivo | `src/components/sections/LiveBoard.tsx` | Próximos horários livres do serviço escolhido; um toque abre o agendamento já na etapa de dados |
+| Serviços + comanda | `src/components/sections/Services.tsx`, `Comanda.tsx` | Toque em + para somar serviços numa comanda (tempo e total na hora); "Escolher horário" leva tudo para o agendamento. A barra inferior mostra quantos itens há na comanda |
+| Página inicial | `src/pages/Home.tsx` + `src/components/sections/` | Manifesto, ritual (fixado no desktop), barbeiros, estilos com lightbox, espaço com a poltrona interativa, clube, localização, dúvidas, epílogo com o último quadro do vídeo |
+| Medalha 3D | `src/components/three/Medallion.tsx` | R3F + Drei, gravação desenhada em canvas com a fonte da marca, vira com a rolagem; só carrega perto da seção |
 | Agendamento | `src/pages/Booking.tsx` + `src/components/booking/` | Serviço → barbeiro (ou primeiro disponível) → dia/horário → dados → revisão → confirmação com código, .ics, Google Agenda, WhatsApp, rota |
 | Meu agendamento | `src/pages/ManageBooking.tsx` | Consulta por código + telefone e cancelamento dentro da política |
 | WhatsApp, rota, ligar | `src/lib/whatsapp.ts`, `src/lib/maps.ts` | Mensagens contextuais; Google Maps, Waze e Apple Mapas |
@@ -35,6 +36,10 @@ npm test           # testes unitários (disponibilidade, horários, adaptador de
 4. **Agenda real (Supabase)**: crie um projeto, rode `supabase/migrations/0001_booking.sql` e `supabase/seed.sql` (com os dados reais), e preencha `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (veja `.env.example`). Detalhes em `docs/BOOKING.md`.
 5. **Domínio**: atualize `site.url`, `public/robots.txt` e `public/sitemap.xml`.
 6. Revise `src/pages/Privacy.tsx` e as políticas de atraso/cancelamento.
+
+## Visualização sem servidor
+
+`npm run build:preview` gera `dist-preview/` com caminhos relativos e navegação por hash, para abrir o site em qualquer subpasta.
 
 ## Hospedagem
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { MotionValue } from 'framer-motion';
 import frames from '@/data/frames.json';
 import { useMotionPref } from '@/hooks/useMotionPref';
 import { asset } from '@/lib/asset';
@@ -20,11 +21,11 @@ function loadOrder(count: number, minStep: number) {
 }
 
 /**
- * Fixed background film scrubbed by page scroll. The video is pre-rendered into WebP frames
- * (see scripts/prepare-assets.mjs) because seeking a <video> per scroll tick stutters on mobile.
- * Scroll is never hijacked: we only ease the displayed frame towards the scroll position.
+ * Film scrubbed by a 0–1 progress value (the intro section's scroll). The video is pre-rendered
+ * into WebP frames (scripts/prepare-assets.mjs) because seeking a <video> per scroll tick stutters
+ * on mobile. Scroll is never hijacked: the displayed frame only eases towards the scroll position.
  */
-export function ScrollFilm() {
+export function ScrollFilm({ progress }: { progress: MotionValue<number> }) {
   const { reduced } = useMotionPref();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [set, setSet] = useState<SetName>(pickSet);
@@ -54,8 +55,8 @@ export function ScrollFilm() {
     const queue = loadOrder(count, lite ? 4 : 1);
 
     let drawn = -1;
-    let current = 0;
-    let target = 0;
+    let target = progress.get();
+    let current = target;
     let raf = 0;
 
     const nearestLoaded = (i: number) => {
@@ -73,25 +74,17 @@ export function ScrollFilm() {
       drawn = idx;
     };
 
-    const measure = () => {
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      target = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
-    };
-
     const tick = () => {
-      current += (target - current) * 0.14;
+      current += (target - current) * 0.16;
       if (Math.abs(target - current) < 0.0004) current = target;
       draw();
       raf = current === target ? 0 : requestAnimationFrame(tick);
     };
 
-    const onScroll = () => {
-      measure();
+    const unsubscribe = progress.on('change', (v) => {
+      target = Math.min(1, Math.max(0, v));
       if (!raf) raf = requestAnimationFrame(tick);
-    };
-
-    measure();
-    current = target;
+    });
 
     let cursor = 0;
     const worker = async () => {
@@ -107,8 +100,8 @@ export function ScrollFilm() {
         }
         if (disposed) return;
         images[i] = img;
-        // Redraw when a closer frame to the current position arrives.
-        if (Math.abs(i - Math.round(current * (count - 1))) < Math.abs(drawn - Math.round(current * (count - 1))) || drawn < 0) {
+        const want = Math.round(current * (count - 1));
+        if (drawn < 0 || Math.abs(i - want) < Math.abs(drawn - want)) {
           draw(true);
           setReady(true);
         }
@@ -116,35 +109,19 @@ export function ScrollFilm() {
     };
     Array.from({ length: 4 }, worker);
 
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
     return () => {
       disposed = true;
       cancelAnimationFrame(raf);
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
+      unsubscribe();
     };
-  }, [set, reduced]);
+  }, [set, reduced, progress]);
 
   return (
-    <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-0 h-[100lvh] overflow-hidden bg-ink">
-      <img
-        src={asset(`media/poster-${set}.webp`)}
-        alt=""
-        className="absolute inset-0 h-full w-full object-cover"
-        fetchPriority="high"
-        decoding="async"
-      />
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden bg-ink">
+      <img src={asset(`media/poster-${set}.webp`)} alt="" className="absolute inset-0 h-full w-full object-cover" fetchPriority="high" decoding="async" />
       {!reduced && (
-        <canvas
-          ref={canvasRef}
-          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${ready ? 'opacity-100' : 'opacity-0'}`}
-        />
+        <canvas ref={canvasRef} className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${ready ? 'opacity-100' : 'opacity-0'}`} />
       )}
-      {/* Light shaping: keeps text readable without killing the film. */}
-      <div className="absolute inset-0 bg-[radial-gradient(120%_90%_at_50%_35%,transparent_30%,rgb(var(--ink)/0.75)_100%)]" />
-      <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-ink/90 via-ink/40 to-transparent" />
-      <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-ink/70 to-transparent" />
     </div>
   );
 }

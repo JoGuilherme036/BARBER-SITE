@@ -25,13 +25,12 @@ export default defineConfig({
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   build: {
     target: 'es2021',
-    chunkSizeWarningLimit: 2200, // Babylon chunk loads only on /experiencia-3d
+    chunkSizeWarningLimit: 1000, // the lazy Three.js chunk (club medallion) is the largest
     rollupOptions: {
-      // One Babylon chunk instead of ~100 shader files; it has no dependencies shared with the main bundle.
       output: {
         manualChunks: (id: string) => {
-          if (id.includes('preload-helper')) return 'preload'; // keep Vite's helper out of the Babylon chunk
-          if (id.includes('node_modules/@babylonjs')) return 'babylon';
+          // Keep Vite's preload helper out of the Three.js chunk, or the main bundle would import it eagerly.
+          if (id.includes('preload-helper')) return 'preload';
         },
       },
     },

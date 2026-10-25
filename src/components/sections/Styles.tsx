@@ -14,7 +14,7 @@ const layout = ['row-span-2', '', '', 'row-span-2', '', ''];
 export function Styles() {
   const [index, setIndex] = useState<number | null>(null);
   return (
-    <section id="estilos" aria-labelledby="estilos-title" className="relative z-10 scroll-mt-20 rounded-b-[2rem] bg-ink/95 pb-24 md:rounded-b-[3rem] md:pb-32">
+    <section id="estilos" aria-labelledby="estilos-title" className="relative z-10 scroll-mt-20 bg-ink pb-24 pt-4 md:pb-32">
       <div className="container-x" id="estilos-title">
         <SectionHeading chapter="VI" label="Estilos" lines={['Do fade', <em key="e" className="brass-text">ao clássico.</em>]} intro="Alguns dos estilos que fazemos. Toque em uma foto para ver em tela cheia e pedir o seu." />
       </div>

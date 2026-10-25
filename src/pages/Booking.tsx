@@ -53,6 +53,19 @@ export default function Booking() {
     initialized.current = true;
     const svc = params.get('servico');
     const pro = params.get('barbeiro');
+    const dia = params.get('dia');
+    const hora = params.get('hora');
+    // Live board: service + day + time chosen on the home page → straight to the details step.
+    if (svc && serviceById(svc) && dia && /^\d{4}-\d{2}-\d{2}$/.test(dia) && hora && /^\d{2}:\d{2}$/.test(hora)) {
+      update({ serviceIds: [svc], proId: pro && proById(pro) ? pro : 'any', day: dia, time: hora });
+      setStep(3);
+      return;
+    }
+    // Comanda: services already picked on the home page.
+    if (params.get('de') === 'comanda' && draft.serviceIds.length) {
+      setStep(1);
+      return;
+    }
     const patch: Partial<typeof draft> = {};
     if (svc && serviceById(svc)) patch.serviceIds = [svc];
     if (pro && proById(pro)) patch.proId = pro;

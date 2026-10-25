@@ -48,7 +48,6 @@ export function Footer() {
           <ul className="mt-4 space-y-3 text-sm">
             <li><Link className="hover:text-brass-light" to="/agendar">Agendar horário</Link></li>
             <li><Link className="hover:text-brass-light" to="/meu-agendamento">Meu agendamento</Link></li>
-            <li><Link className="hover:text-brass-light" to="/experiencia-3d">Explorar a cadeira em 3D</Link></li>
             <li><Link className="hover:text-brass-light" to="/privacidade">Privacidade</Link></li>
             <li>
               <button className="text-left hover:text-brass-light" onClick={() => setPref(reduced ? 'full' : 'reduced')} aria-pressed={reduced}>

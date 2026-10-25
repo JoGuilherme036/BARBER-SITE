@@ -28,6 +28,7 @@ const paths = {
   arrowRight: <path d="M4 12h15M13.5 6.5L19 12l-5.5 5.5" />,
   arrowLeft: <path d="M20 12H5M10.5 6.5L5 12l5.5 5.5" />,
   arrowUpRight: <path d="M7 17L17 7M9 7h8v8" />,
+  arrowDown: <path d="M12 4v15M6.5 13.5L12 19l5.5-5.5" />,
   menu: <path d="M4 8h16M4 16h10" />,
   close: <path d="M6 6l12 12M18 6L6 18" />,
   check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
