@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import frames from '@/data/frames.json';
 import { useMotionPref } from '@/hooks/useMotionPref';
+import { asset } from '@/lib/asset';
 
 type SetName = keyof typeof frames;
 
 const pickSet = (): SetName => (window.innerWidth / window.innerHeight < 1 ? 'portrait' : 'landscape');
-const frameUrl = (set: SetName, i: number) => `/media/frames/${set}/${String(i).padStart(3, '0')}.webp`;
+const frameUrl = (set: SetName, i: number) => asset(`media/frames/${set}/${String(i).padStart(3, '0')}.webp`);
 
 /** Coarse-to-fine order (0, 48, 24, 72, 12, …) so the whole film is scrubbable early and sharpens as it loads. */
 function loadOrder(count: number, minStep: number) {
@@ -128,7 +129,7 @@ export function ScrollFilm() {
   return (
     <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-0 h-[100lvh] overflow-hidden bg-ink">
       <img
-        src={`/media/poster-${set}.webp`}
+        src={asset(`media/poster-${set}.webp`)}
         alt=""
         className="absolute inset-0 h-full w-full object-cover"
         fetchPriority="high"

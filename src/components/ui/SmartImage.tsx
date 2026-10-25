@@ -1,4 +1,5 @@
 import media from '@/data/media.json';
+import { asset } from '@/lib/asset';
 
 type MediaId = keyof typeof media;
 
@@ -17,8 +18,8 @@ type Props = {
 export function SmartImage({ id, alt, sizes = '100vw', className = '', imgClassName = '', priority, focal = '50% 50%', ratio }: Props) {
   const m = media[id as MediaId];
   if (!m) return <ImagePlaceholder label={alt} className={className} ratio={ratio} />;
-  const srcSet = m.widths.map((w) => `/media/img/${id}-${w}.webp ${w}w`).join(', ');
-  const fallback = `/media/img/${id}-${m.widths[Math.min(1, m.widths.length - 1)]}.webp`;
+  const srcSet = m.widths.map((w) => `${asset(`media/img/${id}-${w}.webp`)} ${w}w`).join(', ');
+  const fallback = asset(`media/img/${id}-${m.widths[Math.min(1, m.widths.length - 1)]}.webp`);
   return (
     <div className={`relative overflow-hidden bg-ink-2 ${className}`} style={{ aspectRatio: ratio ?? `${m.width} / ${m.height}` }}>
       <img

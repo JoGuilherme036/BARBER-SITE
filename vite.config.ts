@@ -26,6 +26,15 @@ export default defineConfig({
   build: {
     target: 'es2021',
     chunkSizeWarningLimit: 2200, // Babylon chunk loads only on /experiencia-3d
+    rollupOptions: {
+      // One Babylon chunk instead of ~100 shader files; it has no dependencies shared with the main bundle.
+      output: {
+        manualChunks: (id: string) => {
+          if (id.includes('preload-helper')) return 'preload'; // keep Vite's helper out of the Babylon chunk
+          if (id.includes('node_modules/@babylonjs')) return 'babylon';
+        },
+      },
+    },
   },
   test: { environment: 'node', include: ['tests/**/*.test.ts'] },
 } as never);

@@ -11,6 +11,7 @@ import { maskBrPhone } from '@/lib/phone';
 import { dayOfMonth, formatDayLong, formatDayShort, formatMonth, toMinutes } from '@/lib/time';
 import { whatsappLink } from '@/lib/whatsapp';
 import { Icon } from '../ui/Icon';
+import { Link } from 'react-router-dom';
 
 type StepProps = { draft: Draft; update: (p: Partial<Draft>) => void };
 
@@ -373,9 +374,9 @@ export function ReviewStep({ draft, accepted, setAccepted, acceptError }: StepPr
         <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-[rgb(var(--brass))]" aria-describedby="policy" />
         <span id="policy" className="text-[14px] leading-relaxed text-ivory/85">
           {site.booking.policy} Li e aceito a política de atendimento e a{' '}
-          <a href="/privacidade" target="_blank" className="text-brass-light underline underline-offset-2">
+          <Link to="/privacidade" className="text-brass-light underline underline-offset-2">
             política de privacidade
-          </a>
+          </Link>
           .
         </span>
       </label>

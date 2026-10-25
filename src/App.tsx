@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
@@ -62,14 +62,17 @@ function Shell() {
   );
 }
 
+// Hash routing for static previews hosted under an unknown sub-path (VITE_HASH_ROUTER=1).
+const Router = import.meta.env.VITE_HASH_ROUTER ? HashRouter : BrowserRouter;
+
 export default function App() {
   return (
-    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <MotionPrefProvider>
         <div className="grain">
           <Shell />
         </div>
       </MotionPrefProvider>
-    </BrowserRouter>
+    </Router>
   );
 }

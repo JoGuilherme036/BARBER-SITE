@@ -8,6 +8,7 @@ import { track } from '@/lib/analytics';
 import { Icon } from '../ui/Icon';
 import { LinkButton } from '../ui/Button';
 import { navLinks } from './nav';
+import { asset } from '@/lib/asset';
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -44,7 +45,7 @@ export function Menu({ open, onClose, onNavigate }: { open: boolean; onClose: ()
           transition={{ duration: 0.6, ease }}
         >
           <div className="pointer-events-none absolute inset-0 opacity-30">
-            <img src="/media/poster-portrait.webp" alt="" className="h-full w-full object-cover" />
+            <img src={asset('media/poster-portrait.webp')} alt="" className="h-full w-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-b from-ink via-ink/80 to-ink" />
           </div>
 
