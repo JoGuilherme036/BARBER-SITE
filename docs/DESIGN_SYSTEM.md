@@ -25,7 +25,7 @@ Texto escuro sobre latão nos botões primários; nunca latão sobre latão.
 
 ## Estrutura narrativa
 
-O vídeo é exclusivo da introdução (seção fixa de ~2,6 telas no celular e 3 no desktop): o título fica sobre uma camada escura própria, passa a vez para duas legendas e a imagem escurece até o fundo da página antes do conteúdo começar. Daí em diante tudo fica sobre fundo sólido, alternando o preto principal com "lâminas" (`.slab`, bordas arredondadas) em Serviços, Espaço e Localização/Dúvidas. O epílogo reaproveita o último quadro do vídeo como imagem parada, fechando o ciclo.
+O vídeo é exclusivo da introdução (cerca de uma tela de rolagem): o título fica sobre uma camada escura própria e passa a vez para duas legendas. Assim que o vídeo chega ao fim, a agenda sobe como uma lâmina por cima do último quadro, sem tela vazia entre o vídeo e o conteúdo. Daí em diante tudo fica sobre fundo sólido, alternando o preto principal com "lâminas" (`.slab`, bordas arredondadas) em Serviços, Espaço e Localização/Dúvidas. O epílogo reaproveita o último quadro do vídeo como imagem parada, fechando o ciclo.
 
 Os capítulos são numerados em romano (I–XI). Cada título de capítulo tem o fio e o brilho de uma luminária pendente, o mesmo elemento das luzes âmbar do vídeo.
 

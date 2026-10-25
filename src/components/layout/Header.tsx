@@ -28,7 +28,7 @@ export function Header() {
     <>
       <header
         className={`fixed inset-x-0 top-0 z-40 pt-[env(safe-area-inset-top)] transition-[background-color,border-color] duration-500 ${
-          scrolled ? 'border-b hairline bg-ink/80 backdrop-blur-md' : 'border-b border-transparent'
+          scrolled ? 'border-b hairline bg-ink/92' : 'border-b border-transparent'
         }`}
       >
         <div className="container-x flex h-16 items-center justify-between gap-4 md:h-20">

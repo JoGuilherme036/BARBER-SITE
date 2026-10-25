@@ -159,7 +159,7 @@ export default function Booking() {
   return (
     <div className="relative min-h-[100svh]">
       <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-0">
-        <img src={asset('media/frames/portrait/095.webp')} alt="" className="h-full w-full object-cover opacity-25 blur-sm" />
+        <img src={asset('media/end-portrait.webp')} alt="" className="h-full w-full object-cover opacity-25 blur-sm" />
         <div className="absolute inset-0 bg-gradient-to-b from-ink/80 via-ink/95 to-ink" />
       </div>
 

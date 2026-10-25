@@ -48,7 +48,7 @@ export function ActionBar() {
           exit={{ y: 120, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 380, damping: 34 }}
         >
-          <div className="flex items-center gap-1.5 rounded-full border hairline bg-ink/90 p-1.5 shadow-[0_20px_50px_-20px_rgb(0_0_0/0.9)] backdrop-blur-md">
+          <div className="flex items-center gap-1.5 rounded-full border hairline bg-ink/95 p-1.5 shadow-[0_20px_50px_-20px_rgb(0_0_0/0.9)]">
             <Link
               to={order.services.length ? '/agendar?de=comanda' : '/agendar'}
               onClick={() => track('cta_book_click', { from: 'action_bar' })}

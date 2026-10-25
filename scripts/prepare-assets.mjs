@@ -12,7 +12,6 @@ if (!imagesDir || !videoLandscape || !videoPortrait) {
 }
 
 const out = resolve('public/media');
-const FRAME_STEP = 2; // keep every 2nd frame (192 -> 96)
 
 // Source file prefix -> media id. Source names come from the owner's export.
 const IMAGE_MAP = {
@@ -57,29 +56,32 @@ async function images() {
   writeFileSync(resolve('src/data/media.json'), JSON.stringify(manifest, null, 2) + '\n');
 }
 
-async function frames(video, name, size, quality) {
-  const tmp = join(out, `.tmp-${name}`);
-  const dir = join(out, 'frames', name);
-  rmSync(tmp, { recursive: true, force: true });
-  rmSync(dir, { recursive: true, force: true });
-  mkdirSync(tmp, { recursive: true });
+// Scroll-scrubbed film: every frame is a keyframe (-g 1) so seeking to any time is instant,
+// and the browser keeps only the current frame in memory (an image sequence keeps them all).
+async function film(video, name, size, crf) {
+  const dir = join(out, 'film');
   mkdirSync(dir, { recursive: true });
-  execFileSync('ffmpeg', ['-v', 'error', '-i', video, '-vf', `select='not(mod(n\\,${FRAME_STEP}))',scale=${size}`, '-vsync', 'vfr', join(tmp, '%03d.png')]);
-  const files = readdirSync(tmp).sort();
-  for (const [i, f] of files.entries()) {
-    await sharp(join(tmp, f)).webp({ quality }).toFile(join(dir, `${String(i).padStart(3, '0')}.webp`));
-  }
-  // Poster for first paint (LCP) and reduced-motion fallback.
-  await sharp(join(tmp, files[0])).webp({ quality: 70 }).toFile(join(out, `poster-${name}.webp`));
+  const [w, h] = size.split(':').map(Number);
+  const common = ['-v', 'error', '-y', '-i', video, '-an', '-vf', `scale=${w}:${h},fps=24`];
+  execFileSync('ffmpeg', [...common, '-c:v', 'libx264', '-profile:v', 'main', '-pix_fmt', 'yuv420p', '-preset', 'slow', '-crf', String(crf), '-g', '1', '-keyint_min', '1', '-sc_threshold', '0', '-movflags', '+faststart', join(dir, `${name}.mp4`)]);
+  // Fallback for browsers without H.264.
+  execFileSync('ffmpeg', [...common, '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '57', '-g', '1', '-row-mt', '1', '-deadline', 'good', '-cpu-used', '4', join(dir, `${name}.webm`)]);
+
+  // First frame: instant paint (LCP) and reduced-motion still. Last frame: the epilogue background.
+  const tmp = join(out, `.tmp-${name}`);
+  mkdirSync(tmp, { recursive: true });
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', video, '-vf', `scale=${w}:${h}`, '-frames:v', '1', join(tmp, 'first.png')]);
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-sseof', '-0.1', '-i', video, '-vf', `scale=${w * 4 / 3}:${h * 4 / 3}`, '-frames:v', '1', '-update', '1', join(tmp, 'last.png')]);
+  await sharp(join(tmp, 'first.png')).webp({ quality: 70 }).toFile(join(out, `poster-${name}.webp`));
+  await sharp(join(tmp, 'last.png')).webp({ quality: 66 }).toFile(join(out, `end-${name}.webp`));
   rmSync(tmp, { recursive: true, force: true });
-  console.log('frames', name, files.length);
-  return files.length;
+
+  const duration = Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', join(dir, `${name}.mp4`)]).toString().trim());
+  console.log('film', name, duration);
+  return { width: w, height: h, duration };
 }
 
 await images();
-const landscape = await frames(videoLandscape, 'landscape', '1280:720', 48);
-const portrait = await frames(videoPortrait, 'portrait', '720:1280', 55);
-writeFileSync(
-  resolve('src/data/frames.json'),
-  JSON.stringify({ landscape: { count: landscape, width: 1280, height: 720 }, portrait: { count: portrait, width: 720, height: 1280 } }, null, 2) + '\n',
-);
+const landscape = await film(videoLandscape, 'landscape', '1280:720', 32);
+const portrait = await film(videoPortrait, 'portrait', '540:960', 30);
+writeFileSync(resolve('src/data/film.json'), JSON.stringify({ landscape, portrait }, null, 2) + '\n');

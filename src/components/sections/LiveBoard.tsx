@@ -7,6 +7,7 @@ import { bookableDays, slotsFor } from '@/booking/availability';
 import { formatDuration, formatPrice } from '@/lib/format';
 import { shopNow, weekdayNames, weekdayOf } from '@/lib/time';
 import { track } from '@/lib/analytics';
+import { useMotionPref } from '@/hooks/useMotionPref';
 import { Icon } from '../ui/Icon';
 
 const featured = ['corte-assinatura', 'fade', 'barba-ritual', 'corte-barba'];
@@ -27,6 +28,7 @@ export function LiveBoard() {
   const [board, setBoard] = useState<Board | null | 'error'>(null);
   const [tick, setTick] = useState(0);
   const service = serviceById(serviceId)!;
+  const { reduced } = useMotionPref();
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 60_000);
@@ -52,7 +54,12 @@ export function LiveBoard() {
   const ready = board && board !== 'error';
 
   return (
-    <section id="agenda" aria-labelledby="agenda-title" className="relative z-10 scroll-mt-20 overflow-hidden py-20 md:py-28">
+    <section
+      id="agenda"
+      aria-labelledby="agenda-title"
+      // Slides over the end of the pinned intro (see FILM_END in Intro.tsx).
+      className={`relative z-20 scroll-mt-20 overflow-hidden rounded-t-[2rem] border-t hairline bg-ink pb-20 pt-14 shadow-[0_-40px_80px_-30px_rgb(0_0_0/0.9)] md:rounded-t-[3rem] md:pb-28 md:pt-20 ${reduced ? '' : '-mt-[50svh] md:-mt-[60vh]'}`}
+    >
       <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-0 h-[28rem] w-[56rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgb(var(--brass)/0.16),transparent)]" />
       <div className="container-x relative">
         <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">

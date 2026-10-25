@@ -20,9 +20,9 @@ As imagens ficam em `public/media/img/<id>-<largura>.webp` e são descritas em `
 
 ## Vídeo da introdução
 
-- `public/media/frames/portrait/000–095.webp` (720×1280) para telas em pé e `landscape/` (1280×720) para telas deitadas.
-- `public/media/poster-*.webp` é o primeiro quadro: aparece na hora (LCP) e é o fallback com movimento reduzido.
-- O quadro `095.webp` (último) também é a imagem de fundo do epílogo.
+- `public/media/film/portrait.mp4` (540×960) para telas em pé e `landscape.mp4` (1280×720) para telas deitadas, com um quadro-chave em cada frame: assim o vídeo pula para qualquer ponto na hora, e o celular guarda só o quadro atual na memória. Os `.webm` são reserva para navegadores sem H.264.
+- O site baixa o vídeo inteiro antes de começar a rolar com ele; até lá aparece `poster-*.webp` (primeiro quadro), que também é a imagem fixa com movimento reduzido ou economia de dados.
+- `end-*.webp` (último quadro) é o fundo do epílogo e da tela de agendamento.
 - Para trocar, rode o script com os dois vídeos novos (8 s, 24 fps funcionam bem; pense o movimento de câmera como uma jornada do salão até a bancada).
 
 ## Regras

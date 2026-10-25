@@ -17,7 +17,7 @@ npm test           # testes unitários (disponibilidade, horários, adaptador de
 
 | Área | Onde | Destaques |
 |---|---|---|
-| Introdução com vídeo | `src/components/sections/Intro.tsx` + `background/ScrollFilm.tsx` | O vídeo toca só aqui, fixo na tela enquanto se rola: título legível sobre uma camada escura, duas legendas (a cadeira, a bancada), marcador de capítulos e botão "Pular introdução". Quadros WebP verticais no celular e horizontais no desktop |
+| Introdução com vídeo | `src/components/sections/Intro.tsx` + `background/ScrollFilm.tsx` | O vídeo toca só aqui, fixo na tela enquanto se rola: título legível sobre uma camada escura, duas legendas (a cadeira, a bancada), marcador de capítulos e botão "Pular introdução". A agenda sobe por cima do último quadro, sem tela vazia. Vídeo MP4 com um quadro-chave por frame (vertical 2,6 MB no celular, horizontal 4,3 MB no desktop), leve na memória |
 | Agenda ao vivo | `src/components/sections/LiveBoard.tsx` | Próximos horários livres do serviço escolhido; um toque abre o agendamento já na etapa de dados |
 | Serviços + comanda | `src/components/sections/Services.tsx`, `Comanda.tsx` | Toque em + para somar serviços numa comanda (tempo e total na hora); "Escolher horário" leva tudo para o agendamento. A barra inferior mostra quantos itens há na comanda |
 | Página inicial | `src/pages/Home.tsx` + `src/components/sections/` | Manifesto, ritual (fixado no desktop), barbeiros, estilos com lightbox, espaço com a poltrona interativa, clube, localização, dúvidas, epílogo com o último quadro do vídeo |
@@ -53,7 +53,7 @@ Se trocar o vídeo ou as fotos:
 node scripts/prepare-assets.mjs <pasta-das-fotos-png> <video-horizontal.mp4> <video-vertical.mp4>
 ```
 
-Requer `ffmpeg`. Gera os quadros, os posters e `src/data/media.json` / `src/data/frames.json`.
+Requer `ffmpeg`. Gera os vídeos da introdução (MP4 + WebM), o primeiro e o último quadro e `src/data/media.json` / `src/data/film.json`.
 
 ## Documentação
 

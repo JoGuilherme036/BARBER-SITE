@@ -11,6 +11,10 @@ import { scrollToSection } from '../layout/nav';
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
+// Section scroll fraction where the film ends and the next section starts covering it.
+// Mobile: 250svh tall, 50svh overlap → 100/150. Desktop: 270vh, 60vh overlap → 110/170.
+const FILM_END = 0.65;
+
 // Where each chapter starts on the film (0–1), matching the camera path of the video.
 const chapters = [
   { n: 'I', label: 'A chegada', at: 0 },
@@ -30,19 +34,21 @@ export function Intro() {
   const label = statusLabel(status);
   const { scrollYProgress: p } = useScroll({ target: ref, offset: ['start start', 'end end'] });
 
-  const film = useTransform(p, [0, 0.92], [0, 1]);
-  const dim = useTransform(p, [0, 0.14, 0.28, 0.86, 0.98], [0.38, 0.38, 0.06, 0.12, 1]);
-  const heroOpacity = useTransform(p, [0, 0.07, 0.19], [1, 1, 0]);
-  const heroY = useTransform(p, [0, 0.19], [0, -70]);
+  // The next section overlaps the end of this one (negative margin in LiveBoard) and slides over
+  // the last frame at FILM_END, so there is no dead scroll between the film and the content.
+  const film = useTransform(p, [0, FILM_END], [0, 1]);
+  const dim = useTransform(p, [0, 0.05, 0.16, FILM_END, 1], [0.38, 0.38, 0.06, 0.1, 0.5]);
+  const heroOpacity = useTransform(p, [0, 0.05, 0.14], [1, 1, 0]);
+  const heroY = useTransform(p, [0, 0.14], [0, -70]);
   const heroEvents = useTransform(heroOpacity, (v) => (v < 0.2 ? 'none' : 'auto'));
-  const skipOpacity = useTransform(p, [0, 0.82, 0.9], [1, 1, 0]);
+  const skipOpacity = useTransform(p, [0, FILM_END - 0.12, FILM_END - 0.05], [1, 1, 0]);
 
   const line = (delay: number) => ({ initial: { y: '110%' }, animate: { y: '0%' }, transition: { duration: reduced ? 0 : 0.9, delay: reduced ? 0 : delay, ease } });
   const fade = (delay: number) => ({ initial: { opacity: 0, y: reduced ? 0 : 14 }, animate: { opacity: 1, y: 0 }, transition: { duration: reduced ? 0 : 0.7, delay: reduced ? 0 : delay, ease } });
   const skip = () => document.getElementById('agenda')?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
 
   return (
-    <section ref={ref} aria-labelledby="hero-title" className={reduced ? 'relative' : 'relative h-[260svh] md:h-[300vh]'}>
+    <section ref={ref} aria-labelledby="hero-title" className={reduced ? 'relative' : 'relative h-[250svh] md:h-[270vh]'}>
       <div className={`${reduced ? 'relative' : 'sticky top-0'} h-[100svh] min-h-[620px] overflow-hidden`}>
         <ScrollFilm progress={film} />
 
@@ -92,8 +98,8 @@ export function Intro() {
 
         {!reduced && (
           <>
-            <Caption progress={p} range={[0.3, 0.38, 0.52, 0.6]} chapter="II" label="A cadeira" text="Toda noite começa com uma cadeira vazia." />
-            <Caption progress={p} range={[0.64, 0.71, 0.82, 0.89]} chapter="III" label="A bancada" text="Ferramentas afiadas, tempo de sobra." />
+            <Caption progress={p} range={[0.17, 0.23, 0.33, 0.39]} chapter="II" label="A cadeira" text="Toda noite começa com uma cadeira vazia." />
+            <Caption progress={p} range={[0.43, 0.49, 0.57, 0.63]} chapter="III" label="A bancada" text="Ferramentas afiadas, tempo de sobra." />
             <ChapterRail progress={film} />
             <motion.button
               onClick={skip}
