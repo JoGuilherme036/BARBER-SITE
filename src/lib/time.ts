@@ -1,4 +1,4 @@
-import { site, type Weekday } from '@/config/site';
+import { site, type Weekday } from '../config/site';
 
 // All shop times are wall-clock times in site.timeZone. We work with "YYYY-MM-DD" day keys
 // and "HH:mm" strings, and convert to absolute instants with the fixed site offset.

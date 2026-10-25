@@ -1,39 +1,45 @@
 import { site } from '@/config/site';
+import { team } from '@/config/catalog';
 import { normalizeBrPhone, isValidBrPhone } from '@/lib/phone';
-import { shopInstant } from '@/lib/time';
+import { addDays, shopInstant } from '@/lib/time';
 import { eligiblePros, overlaps, proSlots, summarize, type BusyMap } from './availability';
-import { BookingError, type Booking, type BookingApi, type CreateBookingRequest } from './types';
+import { BookingError, type AdminApi, type Block, type Booking, type BookingApi, type CreateBookingRequest } from './types';
 
-// DEMO adapter: simulates the server in the browser so the full flow can be tested
-// without a backend. Data lives only on this device. Not a real schedule.
+// DEMO adapter: simulates the server in the browser so the full flow (and the admin panel)
+// can be tried without a backend. Data lives only on this device. Not a real schedule.
 
-type Store = { bookings: Booking[]; idempotency: Record<string, string> };
+type StoredBlock = Block & { start: number; end: number };
+type Store = { bookings: Booking[]; idempotency: Record<string, string>; blocks: StoredBlock[]; version: number; nextBlockId: number };
 
 export type StorageLike = Pick<Storage, 'getItem' | 'setItem'>;
 
-const KEY = 'rb.demo.bookings.v1';
+export const LOCAL_STORE_KEY = 'rb.demo.bookings.v1';
+export const DEMO_ADMIN_PASSWORD = 'demo';
 const CODE_ALPHABET = 'ACDEFGHJKMNPQRTUVWXY34679';
 
-export function createLocalApi(storage: StorageLike, opts: { latencyMs?: number; now?: () => Date } = {}): BookingApi {
-  const latency = opts.latencyMs ?? 450;
+export function createLocalApi(storage: StorageLike, opts: { latencyMs?: number; now?: () => Date } = {}): BookingApi & { admin: AdminApi } {
+  const latency = opts.latencyMs ?? 350;
   const now = opts.now ?? (() => new Date());
   const wait = () => new Promise((r) => setTimeout(r, latency));
 
   const read = (): Store => {
     try {
-      return JSON.parse(storage.getItem(KEY) ?? '') as Store;
+      const s = JSON.parse(storage.getItem(LOCAL_STORE_KEY) ?? '') as Partial<Store>;
+      return { bookings: s.bookings ?? [], idempotency: s.idempotency ?? {}, blocks: s.blocks ?? [], version: s.version ?? 1, nextBlockId: s.nextBlockId ?? 1 };
     } catch {
-      return { bookings: [], idempotency: {} };
+      return { bookings: [], idempotency: {}, blocks: [], version: 1, nextBlockId: 1 };
     }
   };
-  const write = (s: Store) => storage.setItem(KEY, JSON.stringify(s));
+  const write = (s: Store, changed = true) => {
+    if (changed) s.version += 1;
+    storage.setItem(LOCAL_STORE_KEY, JSON.stringify(s));
+  };
 
   const busyFor = (store: Store, day: string): BusyMap => {
     const map: BusyMap = {};
-    for (const b of store.bookings) {
-      if (b.status !== 'confirmed' || b.day !== day) continue;
-      (map[b.proId] ??= []).push({ start: Date.parse(b.start), end: Date.parse(b.end) });
-    }
+    const push = (pro: string, start: number, end: number) => (map[pro] ??= []).push({ start, end });
+    for (const b of store.bookings) if (b.status === 'confirmed' && b.day === day) push(b.proId, Date.parse(b.start), Date.parse(b.end));
+    for (const b of store.blocks) if (b.day === day) for (const p of b.proId ? [b.proId] : team.map((t) => t.id)) push(p, b.start, b.end);
     return map;
   };
 
@@ -45,12 +51,83 @@ export function createLocalApi(storage: StorageLike, opts: { latencyMs?: number;
     return code;
   };
 
+  const strip = ({ start: _s, end: _e, ...b }: StoredBlock): Block => b;
+
+  const admin: AdminApi = {
+    async login(password) {
+      await wait();
+      if (password !== DEMO_ADMIN_PASSWORD) throw new BookingError('unauthorized');
+    },
+    async day(day) {
+      await wait();
+      const s = read();
+      return {
+        bookings: s.bookings.filter((b) => b.day === day).sort((a, b) => a.start.localeCompare(b.start)),
+        blocks: s.blocks.filter((b) => b.day === day).sort((a, b) => a.start - b.start).map(strip),
+      };
+    },
+    async addBlock(nb) {
+      await wait();
+      const s = read();
+      const partial = !!nb.startTime;
+      const created: StoredBlock[] = [];
+      for (let d = nb.from; d <= nb.to; d = addDays(d, 1)) {
+        created.push({
+          id: s.nextBlockId++,
+          proId: nb.proId,
+          day: d,
+          startTime: partial ? nb.startTime! : null,
+          endTime: partial ? nb.endTime! : null,
+          reason: nb.reason?.trim() || null,
+          start: shopInstant(d, partial ? nb.startTime! : '00:00').getTime(),
+          end: partial ? shopInstant(d, nb.endTime!).getTime() : shopInstant(addDays(d, 1), '00:00').getTime(),
+        });
+      }
+      s.blocks.push(...created);
+      write(s);
+      const conflicts = s.bookings.filter(
+        (b) => b.status === 'confirmed' && (!nb.proId || b.proId === nb.proId) && created.some((c) => c.day === b.day && Date.parse(b.start) < c.end && Date.parse(b.end) > c.start),
+      );
+      return { created: created.length, conflicts };
+    },
+    async removeBlock(id) {
+      await wait();
+      const s = read();
+      s.blocks = s.blocks.filter((b) => b.id !== id);
+      write(s);
+    },
+    async setStatus(code, status) {
+      await wait();
+      const s = read();
+      const b = s.bookings.find((x) => x.code === code);
+      if (!b) throw new BookingError('not_found');
+      b.status = status;
+      write(s);
+      return b;
+    },
+  };
+
   return {
     mode: 'demo',
+    admin,
+
+    async version() {
+      return read().version;
+    },
 
     async getBusy(day) {
       await wait();
       return busyFor(read(), day);
+    },
+
+    async closures(from, to) {
+      const out = { closed: [] as string[], off: {} as Record<string, string[]> };
+      for (const b of read().blocks) {
+        if (b.startTime || b.day < from || b.day > to) continue;
+        if (b.proId) (out.off[b.proId] ??= []).push(b.day);
+        else out.closed.push(b.day);
+      }
+      return out;
     },
 
     async create(req: CreateBookingRequest) {
@@ -108,9 +185,11 @@ export function createLocalApi(storage: StorageLike, opts: { latencyMs?: number;
       const store = read();
       const b = store.bookings.find((x) => x.code === code.trim().toUpperCase() && x.customer.phone === normalizeBrPhone(phone));
       if (!b) throw new BookingError('not_found');
-      if (Date.parse(b.start) - now().getTime() < site.booking.cancelUntilHours * 3_600_000) throw new BookingError('too_late');
-      b.status = 'cancelled';
-      write(store);
+      if (b.status === 'confirmed') {
+        if (Date.parse(b.start) - now().getTime() < site.booking.cancelUntilHours * 3_600_000) throw new BookingError('too_late');
+        b.status = 'cancelled';
+        write(store);
+      }
       return b;
     },
   };

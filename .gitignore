@@ -5,3 +5,5 @@ dist
 *.log
 public/media/.tmp-*
 dist-preview
+.wrangler
+.dev.vars

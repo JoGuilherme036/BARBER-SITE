@@ -1,4 +1,4 @@
-import { site, type TimeRange, type Weekday } from '@/config/site';
+import { site, type TimeRange, type Weekday } from '../config/site';
 import { addDays, fromMinutes, shopNow, toMinutes, weekdayNames, weekdayOf } from './time';
 
 export const shopRanges = (day: string): readonly TimeRange[] =>

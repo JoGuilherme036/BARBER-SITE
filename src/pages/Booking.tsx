@@ -6,6 +6,7 @@ import { proById, serviceById } from '@/config/catalog';
 import { bookingApi } from '@/booking/api';
 import { eligiblePros, summarize } from '@/booking/availability';
 import { useDraft } from '@/booking/draft';
+import { notifyScheduleChanged } from '@/booking/sync';
 import { BookingError, type Booking as BookingT } from '@/booking/types';
 import { formatDuration, formatPrice } from '@/lib/format';
 import { isValidBrPhone } from '@/lib/phone';
@@ -131,6 +132,7 @@ export default function Booking() {
         customer: { name: draft.name, phone: draft.phone, email: draft.email || undefined, notes: draft.notes || undefined },
       });
       track('booking_confirmed', { services: draft.serviceIds.length });
+      notifyScheduleChanged();
       navigator.vibrate?.(30);
       setBooking(b);
       reset();
@@ -203,7 +205,7 @@ export default function Booking() {
           <StepTransition stepKey={steps[step].id} dir={dir}>
             {step === 0 && <ServicesStep draft={draft} update={update} />}
             {step === 1 && <ProStep draft={draft} update={update} />}
-            {step === 2 && <TimeStep draft={draft} update={update} refreshKey={refreshKey} />}
+            {step === 2 && <TimeStep draft={draft} update={update} refreshKey={refreshKey} onSlotLost={(t) => setNotice(`O horário das ${t} acabou de ser ocupado ou bloqueado. Escolha outro, por favor.`)} />}
             {step === 3 && <DetailsStep draft={draft} update={(p) => (setErrors({}), update(p))} errors={errors} />}
             {step === 4 && <ReviewStep draft={draft} update={update} accepted={accepted} setAccepted={(v) => (setAccepted(v), setAcceptError(false))} acceptError={acceptError} />}
           </StepTransition>

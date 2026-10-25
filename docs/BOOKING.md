@@ -19,25 +19,50 @@ O rascunho é um estado compartilhado (página inicial e agendamento) salvo em `
 
 ## Garantias
 
-- **Sem reserva dupla**: constraint `EXCLUDE USING gist (professional_id WITH =, tstzrange(starts_at, busy_until) WITH &&)` no Postgres. Testado com 6 requisições simultâneas para o mesmo horário: exatamente 1 confirmada.
+- **Sem reserva dupla**: a gravação é um único `INSERT … WHERE NOT EXISTS` no D1 (SQLite serializa as escritas), que confere reservas e bloqueios que se sobrepõem, já com os 10 min de preparação. Há também um índice único por barbeiro e horário de início. Testado com 6 pedidos simultâneos para o mesmo horário: 1 confirmado e 5 recusados (`409 slot_taken`).
 - **Idempotência**: cada tentativa leva uma `idempotency_key`; repetir o envio (clique duplo, rede instável) devolve a mesma reserva.
-- **Primeiro disponível**: o servidor tenta os barbeiros em ordem dentro da mesma função; se outro cliente pegar o horário, passa ao próximo.
-- **Revalidação no envio**: expediente, antecedência, datas fechadas e folgas são checados de novo no servidor.
-- **Preço e duração congelados** na reserva (snapshot).
-- **Privacidade**: `get_busy` devolve só intervalos ocupados; consultar e cancelar exige código + telefone. O papel anônimo não lê nenhuma tabela (RLS ativo, sem políticas).
+- **Primeiro disponível**: o servidor tenta os barbeiros em ordem e grava com o primeiro que estiver livre de verdade.
+- **Mesmas regras no site e no servidor**: `server/api.ts` importa `src/booking/availability.ts` (expediente, pausas, duração, antecedência, horizonte).
+- **Preço e duração congelados** na reserva.
+- **Privacidade**: `/api/busy` devolve só intervalos ocupados; consultar e cancelar exige código + telefone; o painel exige a senha `ADMIN_TOKEN` (comparação em tempo constante).
+
+## Bloqueios (painel `/admin`)
+
+- **Quem**: toda a barbearia ou um barbeiro.
+- **O quê**: um intervalo de horário ou o dia inteiro, em um ou vários dias seguidos (até 90, para férias).
+- O bloqueio passa a valer na hora para novas reservas. Se já havia clientes marcados no período, o painel lista quem são, com um botão de WhatsApp para avisar e remarcar.
+- Dias inteiros bloqueados aparecem desativados na faixa de datas do agendamento.
+
+## Sincronização entre aparelhos
+
+Toda mudança (reserva, cancelamento, bloqueio, status) incrementa um número de versão no banco. As telas que mostram horários consultam esse número (agendamento a cada 10 s, agenda ao vivo a cada 15 s enquanto visível, painel a cada 5 s) e também ao voltar para a aba ou reconectar; quando muda, recarregam os horários sem piscar a tela. Abas do mesmo aparelho são avisadas na hora (BroadcastChannel). Se o horário escolhido pelo cliente some, ele vê um aviso e escolhe outro.
+
+Testado com dois navegadores: um bloqueio feito no painel sumiu do celular do cliente em ~5 s, um dia inteiro bloqueado foi desativado em ~8 s e uma reserva feita no celular apareceu no painel em menos de 1 s.
 
 ## Estados
 
-`confirmed` → `cancelled` (pelo cliente até 2 h antes, ou pela equipe), `completed`, `no_show` (para a equipe registrar). Só `confirmed` ocupa a agenda.
+`confirmed` → `cancelled` (pelo cliente até 2 h antes, ou pela equipe), `completed`, `no_show`. Só `confirmed` ocupa a agenda.
+
+## API (`/api`)
+
+| Método | Rota | Uso |
+|---|---|---|
+| GET | `/version` | número de versão da agenda |
+| GET | `/busy?day=` | intervalos ocupados por barbeiro |
+| GET | `/closures?from=&to=` | dias inteiros bloqueados |
+| POST | `/bookings` | criar reserva |
+| POST | `/bookings/lookup` · `/bookings/cancel` | consultar / cancelar (código + telefone) |
+| GET | `/admin/day?day=` | agenda completa do dia (senha) |
+| POST · DELETE | `/admin/blocks` · `/admin/blocks/:id` | criar / remover bloqueio (senha) |
+| POST | `/admin/bookings/:code/status` | concluir, faltou, cancelar (senha) |
 
 ## Modos
 
-- **Demonstração** (sem variáveis de ambiente): `src/booking/localApi.ts` simula o servidor no navegador com as mesmas regras. Os avisos de "modo demonstração" aparecem no fluxo.
-- **Real**: `src/booking/supabaseApi.ts` chama as funções `get_busy`, `create_booking`, `find_booking` e `cancel_booking` via PostgREST.
+- **Cloudflare** (builds de produção, `.env.production`): `src/booking/cloudflareApi.ts`.
+- **Demonstração** (`npm run dev` e prévia estática): `src/booking/localApi.ts` simula o servidor no navegador, inclusive o painel (senha `demo`).
 
-## Ainda não incluído (próximas fases)
+## Ainda não incluído
 
-- Painel administrativo (agenda do dia, bloqueios, cadastros). Até lá, a equipe usa o painel do Supabase (`bookings`, `time_off`, `closed_dates`).
 - Lembretes automáticos por WhatsApp/e-mail (dependem de provedor e credenciais).
-- Remarcação atômica online: hoje é feita pelo WhatsApp.
-- Rate limit e captcha (recomendado: Cloudflare Turnstile + Edge Function na frente de `create_booking`).
+- Remarcação online pelo cliente (hoje é pelo WhatsApp).
+- Limite de requisições e captcha: recomendo uma regra de rate limiting da Cloudflare em `/api/bookings` e, se houver spam, o Turnstile.

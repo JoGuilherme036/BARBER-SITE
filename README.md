@@ -2,7 +2,9 @@
 
 Site mobile-first de barbearia no conceito **"Ateliê noturno"**: uma introdução em que o vídeo avança conforme a rolagem, uma agenda ao vivo, um cardápio de serviços com comanda, seções editoriais com motion design, uma medalha 3D (Three.js + React Three Fiber + Drei) e um fluxo de agendamento completo.
 
-> ⚠️ **Versão de demonstração.** Nome, endereço, telefone, preços, equipe e planos são fictícios e estão marcados com `DEMO` em `src/config/`. Sem o Supabase configurado, as reservas ficam salvas só no navegador de quem testa.
+> ⚠️ **Dados comerciais de demonstração.** Nome, endereço, telefone, preços, equipe e planos são fictícios e estão marcados com `DEMO` em `src/config/`.
+>
+> A agenda roda na **Cloudflare** (Pages + Functions + banco D1): reservas e bloqueios valem para todos os aparelhos. Em `npm run dev` e na prévia estática, o site usa um modo demonstração que salva só no navegador.
 
 ## Rodar
 
@@ -24,16 +26,30 @@ npm test           # testes unitários (disponibilidade, horários, adaptador de
 | Medalha 3D | `src/components/three/Medallion.tsx` | R3F + Drei, gravação desenhada em canvas com a fonte da marca, vira com a rolagem; só carrega perto da seção |
 | Agendamento | `src/pages/Booking.tsx` + `src/components/booking/` | Serviço → barbeiro (ou primeiro disponível) → dia/horário → dados → revisão → confirmação com código, .ics, Google Agenda, WhatsApp, rota |
 | Meu agendamento | `src/pages/ManageBooking.tsx` | Consulta por código + telefone e cancelamento dentro da política |
+| Painel da barbearia | `src/pages/Admin.tsx` (`/admin`) | Agenda do dia por barbeiro, concluir/faltou/cancelar, **bloquear horário, dia inteiro ou um barbeiro** (inclusive vários dias, como férias), aviso dos clientes afetados com link de WhatsApp |
+| API da agenda | `functions/api/[[route]].ts` + `server/api.ts` + `migrations/` | Cloudflare Pages Functions + D1. Usa as mesmas regras de horário do site e grava de forma atômica (sem reserva dupla) |
+| Sincronização | `src/booking/sync.ts` | Telas abertas atualizam sozinhas quando algo muda em outro aparelho (a cada 5–15 s e ao voltar para a aba) |
 | WhatsApp, rota, ligar | `src/lib/whatsapp.ts`, `src/lib/maps.ts` | Mensagens contextuais; Google Maps, Waze e Apple Mapas |
 | Aberto agora | `src/lib/hours.ts` | Calculado no fuso da barbearia, com datas fechadas |
 | SEO | `index.html`, `src/lib/seo.ts` | Título, Open Graph e JSON-LD `BarberShop` gerados do mesmo arquivo de configuração |
+
+## Publicar na Cloudflare (uma vez)
+
+O banco D1 `rb-barbearia` já foi criado na conta Cloudflare e as tabelas já existem (`wrangler.toml` aponta para ele).
+
+1. No painel da Cloudflare: **Workers & Pages → Criar → Pages → Conectar ao Git** e escolha o repositório `BARBER-SITE`.
+2. Configuração do build: comando `npm run build`, pasta de saída `dist` (o `wrangler.toml` já informa isso e liga o banco D1 com o nome `DB`).
+3. Depois do primeiro deploy: **Configurações → Variáveis e segredos → Adicionar segredo** `ADMIN_TOKEN` com a senha do painel, e faça um novo deploy.
+4. Pronto: o site fica em `https://<projeto>.pages.dev` e o painel em `/admin`. Cada `git push` na `main` publica sozinho.
+
+Para testar a API localmente: `npm run build && npm run db:migrate:local && npm run pages:dev` (crie `.dev.vars` com `ADMIN_TOKEN=uma-senha`).
 
 ## Antes de publicar (checklist do dono)
 
 1. **Dados reais** em `src/config/site.ts` (nome, WhatsApp, endereço, coordenadas, horários, datas fechadas) e troque `demo: true` por `false`.
 2. **Catálogo e equipe** em `src/config/catalog.ts`; planos, FAQ e textos em `src/config/content.ts`.
 3. **Fotos reais da equipe**: adicione as imagens e preencha `photo` de cada barbeiro (veja `docs/MEDIA_GUIDE.md`). Troque as imagens ilustrativas de estilos por trabalhos reais.
-4. **Agenda real (Supabase)**: crie um projeto, rode `supabase/migrations/0001_booking.sql` e `supabase/seed.sql` (com os dados reais), e preencha `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (veja `.env.example`). Detalhes em `docs/BOOKING.md`.
+4. **Senha do painel**: defina o segredo `ADMIN_TOKEN` na Cloudflare (veja acima). Use uma senha longa.
 5. **Domínio**: atualize `site.url`, `public/robots.txt` e `public/sitemap.xml`.
 6. Revise `src/pages/Privacy.tsx` e as políticas de atraso/cancelamento.
 
@@ -43,7 +59,7 @@ npm test           # testes unitários (disponibilidade, horários, adaptador de
 
 ## Hospedagem
 
-Qualquer hospedagem estática com fallback de SPA: `public/_redirects` (Cloudflare Pages / Netlify) e `vercel.json` (Vercel) já estão prontos. Os quadros do vídeo ficam em `public/media` com cache longo.
+Cloudflare Pages (veja acima). Sem `404.html`, o Pages já trata o site como SPA; `public/_headers` define o cache dos arquivos.
 
 ## Regenerar mídia
 

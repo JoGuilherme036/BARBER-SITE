@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { proById, serviceById } from '@/config/catalog';
 import { bookingApi } from '@/booking/api';
@@ -8,6 +8,8 @@ import { formatDuration, formatPrice } from '@/lib/format';
 import { shopNow, weekdayNames, weekdayOf } from '@/lib/time';
 import { track } from '@/lib/analytics';
 import { useMotionPref } from '@/hooks/useMotionPref';
+import { useNearViewport } from '@/hooks/useMisc';
+import { useScheduleVersion } from '@/booking/sync';
 import { Icon } from '../ui/Icon';
 
 const featured = ['corte-assinatura', 'fade', 'barba-ritual', 'corte-barba'];
@@ -29,6 +31,9 @@ export function LiveBoard() {
   const [tick, setTick] = useState(0);
   const service = serviceById(serviceId)!;
   const { reduced } = useMotionPref();
+  const ref = useRef<HTMLElement>(null);
+  const near = useNearViewport(ref, '200px');
+  const { tick: changes } = useScheduleVersion(15_000, near);
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 60_000);
@@ -49,12 +54,13 @@ export function LiveBoard() {
     return () => {
       alive = false;
     };
-  }, [serviceId, tick]);
+  }, [serviceId, tick, changes]);
 
   const ready = board && board !== 'error';
 
   return (
     <section
+      ref={ref}
       id="agenda"
       aria-labelledby="agenda-title"
       // Slides over the end of the pinned intro (see FILM_END in Intro.tsx).

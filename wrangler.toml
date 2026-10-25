@@ -1,0 +1,11 @@
+# Cloudflare Pages project: static site in dist/ + Pages Functions in functions/ + D1 database.
+# The admin password is a secret: set ADMIN_TOKEN in the Pages project settings (never here).
+name = "rb-barbearia"
+pages_build_output_dir = "dist"
+compatibility_date = "2024-11-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "rb-barbearia"
+database_id = "bbf10777-bc76-4e97-9f9e-9533b639854a"
+migrations_dir = "migrations"

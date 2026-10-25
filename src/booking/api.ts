@@ -1,9 +1,9 @@
+import { createCloudflareApi } from './cloudflareApi';
 import { createLocalApi } from './localApi';
-import { createSupabaseApi } from './supabaseApi';
-import type { BookingApi } from './types';
 
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+// Production builds talk to the Cloudflare API (VITE_BOOKING_BACKEND=cloudflare in .env.production).
+// Development and the static preview run the in-browser demo adapter.
+const backend = import.meta.env.VITE_BOOKING_BACKEND as string | undefined;
 
 const memory = new Map<string, string>();
 const safeStorage = {
@@ -23,4 +23,7 @@ const safeStorage = {
   },
 };
 
-export const bookingApi: BookingApi = url && key ? createSupabaseApi(url, key) : createLocalApi(safeStorage);
+const api = backend === 'cloudflare' ? createCloudflareApi((import.meta.env.VITE_API_BASE as string | undefined) ?? '') : createLocalApi(safeStorage);
+
+export const bookingApi = api;
+export const adminApi = api.admin;

@@ -11,6 +11,7 @@ import Home from '@/pages/Home';
 const Booking = lazy(() => import('@/pages/Booking'));
 const ManageBooking = lazy(() => import('@/pages/ManageBooking'));
 const Privacy = lazy(() => import('@/pages/Privacy'));
+const Admin = lazy(() => import('@/pages/Admin'));
 const NotFound = lazy(() => import('@/pages/NotFound'));
 
 function ScrollToTop() {
@@ -32,7 +33,7 @@ function PageFallback() {
 function Shell() {
   const { reduced } = useMotionPref();
   const { pathname } = useLocation();
-  const immersive = pathname.startsWith('/agendar');
+  const immersive = pathname.startsWith('/agendar') || pathname.startsWith('/admin');
   return (
     <MotionConfig reducedMotion={reduced ? 'always' : 'never'}>
       <a href="#conteudo" className="sr-only z-[70] rounded-full bg-brass px-4 py-2 text-ink focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
@@ -51,6 +52,7 @@ function Shell() {
           <Route path="/agendar" element={<Booking />} />
           <Route path="/meu-agendamento" element={<ManageBooking />} />
           <Route path="/privacidade" element={<Privacy />} />
+          <Route path="/admin" element={<Admin />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>

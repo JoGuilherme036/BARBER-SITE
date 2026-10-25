@@ -1,7 +1,7 @@
-import { site } from '@/config/site';
-import { serviceById, team, type Professional } from '@/config/catalog';
-import { shopRanges } from '@/lib/hours';
-import { addDays, fromMinutes, shopInstant, shopNow, toMinutes, weekdayOf } from '@/lib/time';
+import { site } from '../config/site';
+import { serviceById, team, type Professional } from '../config/catalog';
+import { shopRanges } from '../lib/hours';
+import { addDays, fromMinutes, shopInstant, shopNow, toMinutes, weekdayOf } from '../lib/time';
 
 // Pure availability rules. The server re-validates everything on create; this module only
 // decides what the visitor is offered.
@@ -99,12 +99,17 @@ export function slotsFor(
   return [...map.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([time, proIds]) => ({ time, proIds }));
 }
 
-/** Days offered in the date strip, with a flag for days where nobody works. */
-export function bookableDays(serviceIds: string[], proId: string | 'any', now: Date, s: Settings = defaults) {
+/** Whole-day closures set in the admin panel: the shop (`closed`) or one professional (`off`). */
+export type DayClosures = { closed: string[]; off: Record<string, string[]> };
+
+/** Days offered in the date strip, with a flag for days where nobody can take the booking. */
+export function bookableDays(serviceIds: string[], proId: string | 'any', now: Date, s: Settings = defaults, closures?: DayClosures) {
   const today = shopNow(now).day;
   const pros = eligiblePros(serviceIds).filter((p) => proId === 'any' || p.id === proId);
   return Array.from({ length: s.maxDaysAhead + 1 }, (_, i) => {
     const day = addDays(today, i);
-    return { day, works: pros.some((p) => workingRanges(p, day).length > 0) };
+    const works =
+      !closures?.closed.includes(day) && pros.some((p) => workingRanges(p, day).length > 0 && !closures?.off[p.id]?.includes(day));
+    return { day, works };
   });
 }

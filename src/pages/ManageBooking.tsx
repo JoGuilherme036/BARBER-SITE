@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { proById, serviceById } from '@/config/catalog';
 import { site } from '@/config/site';
 import { bookingApi } from '@/booking/api';
+import { notifyScheduleChanged } from '@/booking/sync';
 import { BookingError, type Booking } from '@/booking/types';
 import { formatDuration, formatPrice } from '@/lib/format';
 import { maskBrPhone } from '@/lib/phone';
@@ -39,6 +40,7 @@ export default function ManageBooking() {
     setState('loading');
     try {
       setBooking(await bookingApi.cancel(booking.code, phone));
+      notifyScheduleChanged();
       setMessage('Agendamento cancelado. O horário foi liberado.');
       setState('idle');
     } catch (e) {

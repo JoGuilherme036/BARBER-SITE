@@ -49,6 +49,7 @@ export function Footer() {
             <li><Link className="hover:text-brass-light" to="/agendar">Agendar horário</Link></li>
             <li><Link className="hover:text-brass-light" to="/meu-agendamento">Meu agendamento</Link></li>
             <li><Link className="hover:text-brass-light" to="/privacidade">Privacidade</Link></li>
+            <li><Link className="hover:text-brass-light" to="/admin">Área da barbearia</Link></li>
             <li>
               <button className="text-left hover:text-brass-light" onClick={() => setPref(reduced ? 'full' : 'reduced')} aria-pressed={reduced}>
                 {reduced ? 'Ativar animações' : 'Reduzir animações'}

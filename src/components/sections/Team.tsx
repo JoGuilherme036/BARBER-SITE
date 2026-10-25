@@ -2,6 +2,7 @@ import { useEffect, useState, type PointerEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { team, type Professional } from '@/config/catalog';
 import { bookingApi } from '@/booking/api';
+import { useScheduleVersion } from '@/booking/sync';
 import { proSlots } from '@/booking/availability';
 import { addDays, shopNow } from '@/lib/time';
 import { track } from '@/lib/analytics';
@@ -13,6 +14,7 @@ import { Icon } from '../ui/Icon';
 /** First free 45-min slot today or in the next days, computed from real availability. */
 function useNextSlots() {
   const [next, setNext] = useState<Record<string, string>>({});
+  const { tick } = useScheduleVersion(30_000);
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -34,7 +36,7 @@ function useNextSlots() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [tick]);
   return next;
 }
 

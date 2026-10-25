@@ -4,11 +4,12 @@ import { categories, services, team } from '@/config/catalog';
 import { toggleService } from '@/booking/selection';
 import { site } from '@/config/site';
 import { bookingApi } from '@/booking/api';
-import { bookableDays, eligiblePros, slotsFor, summarize, type BusyMap } from '@/booking/availability';
+import { bookableDays, eligiblePros, slotsFor, summarize, type BusyMap, type DayClosures } from '@/booking/availability';
+import { useScheduleVersion } from '@/booking/sync';
 import type { Draft } from '@/booking/draft';
 import { formatDuration, formatPrice } from '@/lib/format';
 import { maskBrPhone } from '@/lib/phone';
-import { dayOfMonth, formatDayLong, formatDayShort, formatMonth, toMinutes } from '@/lib/time';
+import { addDays, dayOfMonth, formatDayLong, formatDayShort, formatMonth, shopNow, toMinutes } from '@/lib/time';
 import { whatsappLink } from '@/lib/whatsapp';
 import { Icon } from '../ui/Icon';
 import { Link } from 'react-router-dom';
@@ -122,11 +123,15 @@ const periods = [
   { label: 'Noite', from: 18 * 60, to: 24 * 60 },
 ];
 
-export function TimeStep({ draft, update, refreshKey }: StepProps & { refreshKey: number }) {
+export function TimeStep({ draft, update, refreshKey, onSlotLost }: StepProps & { refreshKey: number; onSlotLost?: (time: string) => void }) {
   const proId = draft.proId ?? 'any';
-  const now = useMemo(() => new Date(), [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  const days = useMemo(() => bookableDays(draft.serviceIds, proId, now), [draft.serviceIds, proId, now]);
+  // Bookings and blocks made on other devices arrive here without a reload.
+  const { tick } = useScheduleVersion(10_000);
+  const now = useMemo(() => new Date(), [refreshKey, tick]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [closures, setClosures] = useState<DayClosures>();
+  const days = useMemo(() => bookableDays(draft.serviceIds, proId, now, undefined, closures), [draft.serviceIds, proId, now, closures]);
   const [busy, setBusy] = useState<BusyMap | null>(null);
+  const [busyDay, setBusyDay] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const [searching, setSearching] = useState(false);
   const day = draft.day && days.some((d) => d.day === draft.day && d.works) ? draft.day : days.find((d) => d.works)?.day ?? null;
@@ -136,20 +141,41 @@ export function TimeStep({ draft, update, refreshKey }: StepProps & { refreshKey
   }, [day]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    const today = shopNow().day;
+    bookingApi
+      .closures(today, addDays(today, site.booking.maxDaysAhead))
+      .then(setClosures)
+      .catch(() => undefined);
+  }, [tick, refreshKey]);
+
+  useEffect(() => {
     if (!day) return;
     let alive = true;
-    setBusy(null);
+    if (busyDay !== day) setBusy(null); // skeleton only when switching days; live refreshes swap in place
     setError(false);
     bookingApi
       .getBusy(day)
-      .then((b) => alive && setBusy(b))
+      .then((b) => {
+        if (!alive) return;
+        setBusy(b);
+        setBusyDay(day);
+      })
       .catch(() => alive && setError(true));
     return () => {
       alive = false;
     };
-  }, [day, refreshKey]);
+  }, [day, refreshKey, tick]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const slots = busy && day ? slotsFor(draft.serviceIds, proId, day, busy, now) : [];
+  const slots = busy && day && busyDay === day ? slotsFor(draft.serviceIds, proId, day, busy, now) : [];
+
+  // The chosen time was just taken or blocked elsewhere: clear it and say so.
+  useEffect(() => {
+    if (!busy || busyDay !== day || !draft.time) return;
+    if (!slots.some((s) => s.time === draft.time)) {
+      onSlotLost?.(draft.time);
+      update({ time: null });
+    }
+  }, [busy]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const findNext = async () => {
     if (!day) return;
@@ -202,7 +228,7 @@ export function TimeStep({ draft, update, refreshKey }: StepProps & { refreshKey
               Tentar de novo
             </button>
           </div>
-        ) : !busy ? (
+        ) : !busy || busyDay !== day ? (
           <div className="grid grid-cols-3 gap-2 xs:grid-cols-4">
             {Array.from({ length: 12 }, (_, i) => (
               <span key={i} className="h-12 animate-pulse rounded-xl bg-ivory/5" />

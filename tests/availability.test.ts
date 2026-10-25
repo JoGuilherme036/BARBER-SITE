@@ -78,6 +78,14 @@ describe('bookableDays', () => {
     expect(days[0]).toEqual({ day, works: true });
     expect(days.find((d) => d.day === '2026-11-08')?.works).toBe(false);
   });
+  it('respects whole-day closures from the admin panel', () => {
+    const closures = { closed: ['2026-11-04'], off: { rafael: ['2026-11-05'] } };
+    const any = bookableDays(['fade'], 'any', now, undefined, closures);
+    expect(any.find((d) => d.day === '2026-11-04')?.works).toBe(false);
+    expect(any.find((d) => d.day === '2026-11-05')?.works).toBe(true); // Bruno still works
+    const rafael = bookableDays(['fade'], 'rafael', now, undefined, closures);
+    expect(rafael.find((d) => d.day === '2026-11-05')?.works).toBe(false);
+  });
 });
 
 describe('overlaps', () => {

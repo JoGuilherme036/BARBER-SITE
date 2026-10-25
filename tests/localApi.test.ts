@@ -66,3 +66,46 @@ describe('local booking adapter', () => {
     await expect(later.cancel(b.code, '11987654321')).rejects.toMatchObject({ code: 'too_late' });
   });
 });
+
+describe('blocks, closures and sync version (demo adapter)', () => {
+  it('a time block removes those slots and bumps the version', async () => {
+    const api = createLocalApi(memoryStorage(), { latencyMs: 0, now });
+    const v0 = await api.version();
+    const r = await api.admin.addBlock({ proId: 'rafael', from: '2026-11-03', to: '2026-11-03', startTime: '10:00', endTime: '12:00', reason: 'Curso' });
+    expect(r.created).toBe(1);
+    expect(await api.version()).toBeGreaterThan(v0);
+    await expect(api.create({ ...base, time: '10:30', proId: 'rafael', idempotencyKey: 'b1' })).rejects.toMatchObject({ code: 'slot_taken' });
+    // "Any" falls through to the next professional who is free.
+    expect((await api.create({ ...base, time: '10:30', proId: 'any', idempotencyKey: 'b2' })).proId).toBe('bruno');
+  });
+
+  it('a shop-wide whole-day block closes the day for everyone', async () => {
+    const api = createLocalApi(memoryStorage(), { latencyMs: 0, now });
+    await api.admin.addBlock({ proId: null, from: '2026-11-04', to: '2026-11-05' });
+    expect(await api.closures('2026-11-01', '2026-11-30')).toEqual({ closed: ['2026-11-04', '2026-11-05'], off: {} });
+    await expect(api.create({ ...base, day: '2026-11-04', proId: 'any', idempotencyKey: 'c1' })).rejects.toMatchObject({ code: 'slot_taken' });
+  });
+
+  it('reports existing bookings that fall inside a new block', async () => {
+    const api = createLocalApi(memoryStorage(), { latencyMs: 0, now });
+    const b = await api.create({ ...base, proId: 'rafael', idempotencyKey: 'k1' });
+    const r = await api.admin.addBlock({ proId: 'rafael', from: '2026-11-03', to: '2026-11-03', startTime: '09:00', endTime: '12:00' });
+    expect(r.conflicts.map((c) => c.code)).toEqual([b.code]);
+  });
+
+  it('removing a block frees the slots again; status changes are tracked', async () => {
+    const api = createLocalApi(memoryStorage(), { latencyMs: 0, now });
+    await api.admin.addBlock({ proId: 'rafael', from: '2026-11-03', to: '2026-11-03' });
+    const { blocks } = await api.admin.day('2026-11-03');
+    await api.admin.removeBlock(blocks[0].id);
+    const b = await api.create({ ...base, proId: 'rafael', idempotencyKey: 'k9' });
+    expect((await api.admin.setStatus(b.code, 'completed')).status).toBe('completed');
+    expect((await api.getBusy('2026-11-03')).rafael).toBeUndefined(); // completed no longer occupies
+  });
+
+  it('checks the demo admin password', async () => {
+    const api = createLocalApi(memoryStorage(), { latencyMs: 0, now });
+    await expect(api.admin.login('errada')).rejects.toMatchObject({ code: 'unauthorized' });
+    await expect(api.admin.login('demo')).resolves.toBeUndefined();
+  });
+});
