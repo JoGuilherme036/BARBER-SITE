@@ -39,7 +39,7 @@ Carregue as ferramentas com ToolSearch e use:
 - `get_component`: trazer o código e **adaptá-lo** ao design system. Nunca colar sem adaptar tokens, cores e movimento.
 - `search_logo`: ícones de redes e meios de pagamento.
 - `record_inspiration_feedback`: registrar o que foi aproveitado.
-- **Links de referência que o dono do projeto já enviou:** peça o link de novo no início da sessão, caso ele não esteja no contexto, e trate-o como fonte primária de elementos.
+- **Biblioteca de referência do dono do projeto:** https://naocodei.com/free-code/ (elementos e códigos gratuitos para sites). Acesse a página, catalogue em `/docs/references.md` os elementos aproveitáveis (nome, tecnologia, onde usar no site) e adapte-os ao design system. Trate-a como fonte primária de elementos, junto com o 21st.dev. Se a página estiver inacessível no ambiente, avise o dono e peça que ele cole o código ou prints dos elementos desejados.
 
 ### 1.3 Stack técnica
 
@@ -387,5 +387,5 @@ barber-site/
 
 ### PRIMEIRA AÇÃO AO RECEBER ESTE PROMPT
 1. Invoque as skills da seção 1.1 e carregue as ferramentas do 21st.dev.
-2. Peça o **link de referência** de elementos que o dono enviou anteriormente e os dados indispensáveis (seção 13.1).
+2. Acesse a biblioteca de referência (https://naocodei.com/free-code/), gere `/docs/references.md` e peça os dados indispensáveis (seção 13.1).
 3. Entregue a **Fase 1** (brandbook + wireframes mobile + mapa de motion) e aguarde aprovação antes de codar.
