@@ -2,10 +2,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { proById, serviceById } from '@/config/catalog';
-import { bookingApi } from '@/booking/api';
+import { cachedBusy } from '@/booking/busyCache';
 import { bookableDays, slotsFor } from '@/booking/availability';
 import { formatDuration, formatPrice } from '@/lib/format';
-import { shopNow, weekdayNames, weekdayOf } from '@/lib/time';
+import { relativeDayName, shopNow } from '@/lib/time';
 import { track } from '@/lib/analytics';
 import { useMotionPref } from '@/hooks/useMotionPref';
 import { useNearViewport } from '@/hooks/useMisc';
@@ -17,12 +17,6 @@ const MAX = 8;
 
 type Board = { day: string; slots: { time: string; proIds: string[] }[] };
 
-function dayName(day: string) {
-  const today = shopNow().day;
-  if (day === today) return 'Hoje';
-  const diff = Math.round((Date.parse(day) - Date.parse(today)) / 86_400_000);
-  return diff === 1 ? 'Amanhã' : weekdayNames[weekdayOf(day)];
-}
 
 /** Next free start times for one service, straight from the schedule. One tap opens the booking at the details step. */
 export function LiveBoard() {
@@ -33,7 +27,7 @@ export function LiveBoard() {
   const { reduced } = useMotionPref();
   const ref = useRef<HTMLElement>(null);
   const near = useNearViewport(ref, '200px');
-  const { tick: changes } = useScheduleVersion(15_000, near);
+  const { tick: changes } = useScheduleVersion({ active: near, fallbackMs: 10_000 });
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 60_000);
@@ -45,7 +39,7 @@ export function LiveBoard() {
     (async () => {
       const now = new Date();
       for (const d of bookableDays([serviceId], 'any', now).filter((x) => x.works).slice(0, 7)) {
-        const busy = await bookingApi.getBusy(d.day);
+        const busy = await cachedBusy(d.day);
         const slots = slotsFor([serviceId], 'any', d.day, busy, now);
         if (slots.length) return alive && setBoard({ day: d.day, slots: slots.slice(0, MAX) });
       }
@@ -78,7 +72,7 @@ export function LiveBoard() {
               Agenda ao vivo
             </p>
             <h2 id="agenda-title" className="display mt-4 text-[clamp(2.4rem,9vw,4.6rem)]">
-              {ready ? dayName(board.day) : 'Hoje'} <em className="brass-text">na cadeira.</em>
+              {ready ? relativeDayName(board.day) : 'Hoje'} <em className="brass-text">na cadeira.</em>
             </h2>
             <p className="mt-3 max-w-md text-[15px] text-muted">Toque num horário livre e reserve em seguida, sem passar pelo calendário.</p>
           </div>
@@ -132,7 +126,7 @@ export function LiveBoard() {
                     <Link
                       to={`/agendar?servico=${serviceId}&dia=${board.day}&hora=${s.time}`}
                       onClick={() => track('cta_book_click', { from: 'live_board', service: serviceId })}
-                      aria-label={`Reservar ${service.name} ${dayName(board.day).toLowerCase()} às ${s.time}`}
+                      aria-label={`Reservar ${service.name} ${relativeDayName(board.day).toLowerCase()} às ${s.time}`}
                       className="group relative flex h-[5.5rem] flex-col justify-between overflow-hidden rounded-2xl border hairline bg-ink px-4 py-3 transition-colors hover:border-brass/70"
                     >
                       {/* split-flap seam */}

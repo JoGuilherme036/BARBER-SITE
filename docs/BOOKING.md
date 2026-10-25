@@ -33,11 +33,14 @@ O rascunho é um estado compartilhado (página inicial e agendamento) salvo em `
 - O bloqueio passa a valer na hora para novas reservas. Se já havia clientes marcados no período, o painel lista quem são, com um botão de WhatsApp para avisar e remarcar.
 - Dias inteiros bloqueados aparecem desativados na faixa de datas do agendamento.
 
-## Sincronização entre aparelhos
+## Tempo real entre aparelhos
 
-Toda mudança (reserva, cancelamento, bloqueio, status) incrementa um número de versão no banco. As telas que mostram horários consultam esse número (agendamento a cada 10 s, agenda ao vivo a cada 15 s enquanto visível, painel a cada 5 s) e também ao voltar para a aba ou reconectar; quando muda, recarregam os horários sem piscar a tela. Abas do mesmo aparelho são avisadas na hora (BroadcastChannel). Se o horário escolhido pelo cliente some, ele vê um aviso e escolhe outro.
+Toda mudança (reserva, cancelamento, bloqueio, status, agendamento pelo painel) incrementa um número de versão no banco e o Worker avisa o Durable Object `ScheduleHub`, que manda uma mensagem por WebSocket para todas as telas abertas. Elas recarregam os horários sem piscar. Se o horário escolhido pelo cliente some, ele vê um aviso e escolhe outro.
 
-Testado com dois navegadores: um bloqueio feito no painel sumiu do celular do cliente em ~5 s, um dia inteiro bloqueado foi desativado em ~8 s e uma reserva feita no celular apareceu no painel em menos de 1 s.
+- Medido com dois navegadores no Worker local: bloqueio no painel → celular do cliente em **0,14 s**; reserva no celular → painel em **0,16 s**; agendamento pelo painel → celular em **0,15 s**.
+- O WebSocket usa a API de hibernação: conexões paradas não custam nada e o "ping" a cada 25 s é respondido pelo próprio runtime.
+- Se a conexão cair (rede ruim, Wi-Fi trocando), a tela consulta a versão a cada 3 s e reconecta sozinha; ao voltar para a aba, confere na hora.
+- Abas do mesmo aparelho também são avisadas por BroadcastChannel.
 
 ## Estados
 
@@ -47,6 +50,7 @@ Testado com dois navegadores: um bloqueio feito no painel sumiu do celular do cl
 
 | Método | Rota | Uso |
 |---|---|---|
+| GET (WebSocket) | `/live` | avisos de mudança em tempo real |
 | GET | `/version` | número de versão da agenda |
 | GET | `/busy?day=` | intervalos ocupados por barbeiro |
 | GET | `/closures?from=&to=` | dias inteiros bloqueados |
@@ -54,11 +58,12 @@ Testado com dois navegadores: um bloqueio feito no painel sumiu do celular do cl
 | POST | `/bookings/lookup` · `/bookings/cancel` | consultar / cancelar (código + telefone) |
 | GET | `/admin/day?day=` | agenda completa do dia (senha) |
 | POST · DELETE | `/admin/blocks` · `/admin/blocks/:id` | criar / remover bloqueio (senha) |
+| POST | `/admin/bookings` | agendar pelo painel, sem antecedência mínima (senha) |
 | POST | `/admin/bookings/:code/status` | concluir, faltou, cancelar (senha) |
 
 ## Modos
 
-- **Cloudflare** (builds de produção, `.env.production`): `src/booking/cloudflareApi.ts`.
+- **Cloudflare** (builds de produção, `.env.production`): `src/booking/cloudflareApi.ts` + `src/booking/sync.ts` (WebSocket).
 - **Demonstração** (`npm run dev` e prévia estática): `src/booking/localApi.ts` simula o servidor no navegador, inclusive o painel (senha `demo`).
 
 ## Ainda não incluído

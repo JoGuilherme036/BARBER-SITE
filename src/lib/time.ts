@@ -51,3 +51,11 @@ export const formatMonth = (day: string) => monthFmt.format(new Date(`${day}T12:
 export const dayOfMonth = (day: string) => Number(day.slice(8, 10));
 
 export const weekdayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
+/** "Hoje", "Amanhã" or the weekday name, relative to today in the shop's time zone. */
+export function relativeDayName(day: string, now = new Date()) {
+  const today = shopNow(now).day;
+  if (day === today) return 'Hoje';
+  if (day === addDays(today, 1)) return 'Amanhã';
+  return weekdayNames[weekdayOf(day)];
+}

@@ -4,7 +4,7 @@ Site mobile-first de barbearia no conceito **"Ateliê noturno"**: uma introduç�
 
 > ⚠️ **Dados comerciais de demonstração.** Nome, endereço, telefone, preços, equipe e planos são fictícios e estão marcados com `DEMO` em `src/config/`.
 >
-> A agenda roda na **Cloudflare** (Pages + Functions + banco D1): reservas e bloqueios valem para todos os aparelhos. Em `npm run dev` e na prévia estática, o site usa um modo demonstração que salva só no navegador.
+> A agenda roda na **Cloudflare** (um Worker com o site, a API, o banco D1 e um Durable Object de tempo real): reservas e bloqueios aparecem em todos os aparelhos em menos de 1 segundo. Em `npm run dev` e na prévia estática, o site usa um modo demonstração que salva só no navegador.
 
 ## Rodar
 
@@ -19,16 +19,16 @@ npm test           # testes unitários (disponibilidade, horários, adaptador de
 
 | Área | Onde | Destaques |
 |---|---|---|
-| Introdução com vídeo | `src/components/sections/Intro.tsx` + `background/ScrollFilm.tsx` | O vídeo toca só aqui, fixo na tela enquanto se rola: título legível sobre uma camada escura, duas legendas (a cadeira, a bancada), marcador de capítulos e botão "Pular introdução". A agenda sobe por cima do último quadro, sem tela vazia. Vídeo MP4 com um quadro-chave por frame (vertical 2,6 MB no celular, horizontal 4,3 MB no desktop), leve na memória |
+| Introdução com vídeo | `src/components/sections/Intro.tsx` + `background/ScrollFilm.tsx` | A animação toca só aqui, fixa na tela enquanto se rola: título legível, duas legendas, marcador de capítulos, "Pular introdução" e atalho "Próximo horário livre". 72 quadros WebP (2 MB no celular) desenhados num canvas; só os quadros perto da posição atual ficam abertos na memória e dois vizinhos se misturam para o movimento ficar contínuo. Funciona no iPhone e nos navegadores do Instagram/WhatsApp, onde vídeo não carrega sem toque |
 | Agenda ao vivo | `src/components/sections/LiveBoard.tsx` | Próximos horários livres do serviço escolhido; um toque abre o agendamento já na etapa de dados |
 | Serviços + comanda | `src/components/sections/Services.tsx`, `Comanda.tsx` | Toque em + para somar serviços numa comanda (tempo e total na hora); "Escolher horário" leva tudo para o agendamento. A barra inferior mostra quantos itens há na comanda |
 | Página inicial | `src/pages/Home.tsx` + `src/components/sections/` | Manifesto, ritual (fixado no desktop), barbeiros, estilos com lightbox, espaço com a poltrona interativa, clube, localização, dúvidas, epílogo com o último quadro do vídeo |
 | Medalha 3D | `src/components/three/Medallion.tsx` | R3F + Drei, gravação desenhada em canvas com a fonte da marca, vira com a rolagem; só carrega perto da seção |
 | Agendamento | `src/pages/Booking.tsx` + `src/components/booking/` | Serviço → barbeiro (ou primeiro disponível) → dia/horário → dados → revisão → confirmação com código, .ics, Google Agenda, WhatsApp, rota |
 | Meu agendamento | `src/pages/ManageBooking.tsx` | Consulta por código + telefone e cancelamento dentro da política |
-| Painel da barbearia | `src/pages/Admin.tsx` (`/admin`) | Agenda do dia por barbeiro, concluir/faltou/cancelar, **bloquear horário, dia inteiro ou um barbeiro** (inclusive vários dias, como férias), aviso dos clientes afetados com link de WhatsApp |
-| API da agenda | `functions/api/[[route]].ts` + `server/api.ts` + `migrations/` | Cloudflare Pages Functions + D1. Usa as mesmas regras de horário do site e grava de forma atômica (sem reserva dupla) |
-| Sincronização | `src/booking/sync.ts` | Telas abertas atualizam sozinhas quando algo muda em outro aparelho (a cada 5–15 s e ao voltar para a aba) |
+| Painel da barbearia | `src/pages/Admin.tsx` (`/admin`) | Agenda do dia por barbeiro, **agendar cliente** que ligou ou chegou sem hora (sem a antecedência mínima, telefone opcional), concluir/faltou/cancelar, **bloquear horário, dia inteiro ou um barbeiro** (inclusive vários dias, como férias), aviso dos clientes afetados com link de WhatsApp |
+| API da agenda | `server/worker.ts` + `server/api.ts` + `migrations/` | Cloudflare Worker + D1. Usa as mesmas regras de horário do site e grava de forma atômica (sem reserva dupla) |
+| Tempo real | `server/hub.ts` + `src/booking/sync.ts` | Durable Object com WebSocket: o servidor avisa todos os aparelhos no instante da mudança (medido: 0,14 s). Se a conexão cair, consulta a cada 3 s e reconecta sozinho |
 | WhatsApp, rota, ligar | `src/lib/whatsapp.ts`, `src/lib/maps.ts` | Mensagens contextuais; Google Maps, Waze e Apple Mapas |
 | Aberto agora | `src/lib/hours.ts` | Calculado no fuso da barbearia, com datas fechadas |
 | SEO | `index.html`, `src/lib/seo.ts` | Título, Open Graph e JSON-LD `BarberShop` gerados do mesmo arquivo de configuração |
@@ -37,12 +37,12 @@ npm test           # testes unitários (disponibilidade, horários, adaptador de
 
 O banco D1 `rb-barbearia` já foi criado na conta Cloudflare e as tabelas já existem (`wrangler.toml` aponta para ele).
 
-1. No painel da Cloudflare: **Workers & Pages → Criar → Pages → Conectar ao Git** e escolha o repositório `BARBER-SITE`.
-2. Configuração do build: comando `npm run build`, pasta de saída `dist` (o `wrangler.toml` já informa isso e liga o banco D1 com o nome `DB`).
-3. Depois do primeiro deploy: **Configurações → Variáveis e segredos → Adicionar segredo** `ADMIN_TOKEN` com a senha do painel, e faça um novo deploy.
-4. Pronto: o site fica em `https://<projeto>.pages.dev` e o painel em `/admin`. Cada `git push` na `main` publica sozinho.
+1. No painel da Cloudflare: **Workers & Pages → Criar → Importar um repositório** e escolha `BARBER-SITE`.
+2. Nome do projeto: **`rb-barbearia`** (precisa ser igual ao `name` do `wrangler.toml`). Comando de build: `npm run build`. Comando de deploy: `npx wrangler deploy` (padrão).
+3. Depois do primeiro deploy: **Configurações → Variáveis e segredos → Adicionar** um segredo `ADMIN_TOKEN` com a senha do painel, e faça um novo deploy.
+4. Pronto: o site fica em `https://rb-barbearia.<sua-conta>.workers.dev` e o painel em `/admin`. Cada `git push` na `main` publica sozinho. Para usar um domínio próprio: **Configurações → Domínios e rotas**.
 
-Para testar a API localmente: `npm run build && npm run db:migrate:local && npm run pages:dev` (crie `.dev.vars` com `ADMIN_TOKEN=uma-senha`).
+Para testar tudo localmente: `npm run build && npm run db:migrate:local && npm run worker:dev` (crie `.dev.vars` com `ADMIN_TOKEN=uma-senha`).
 
 ## Antes de publicar (checklist do dono)
 
@@ -59,7 +59,7 @@ Para testar a API localmente: `npm run build && npm run db:migrate:local && npm 
 
 ## Hospedagem
 
-Cloudflare Pages (veja acima). Sem `404.html`, o Pages já trata o site como SPA; `public/_headers` define o cache dos arquivos.
+Cloudflare Workers com arquivos estáticos (veja acima): o Worker só é acionado em `/api/*`; o resto é servido direto do cache da Cloudflare, sem custo de requisição. `public/_headers` define o cache dos arquivos.
 
 ## Regenerar mídia
 
@@ -69,7 +69,7 @@ Se trocar o vídeo ou as fotos:
 node scripts/prepare-assets.mjs <pasta-das-fotos-png> <video-horizontal.mp4> <video-vertical.mp4>
 ```
 
-Requer `ffmpeg`. Gera os vídeos da introdução (MP4 + WebM), o primeiro e o último quadro e `src/data/media.json` / `src/data/film.json`.
+Requer `ffmpeg`. Gera os quadros da introdução, o primeiro e o último quadro e `src/data/media.json` / `src/data/frames.json`.
 
 ## Documentação
 

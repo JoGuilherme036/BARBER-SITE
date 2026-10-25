@@ -18,12 +18,13 @@ As imagens ficam em `public/media/img/<id>-<largura>.webp` e são descritas em `
 | *(faltando)* `barbeiro-<id>` | Cards da equipe | 4:5 | Retrato real; depois preencha `photo: 'barbeiro-<id>'` em `catalog.ts` |
 | *(faltando)* `fachada` | Localização | 3:2 | Entrada real, reconhecível por quem chega |
 
-## Vídeo da introdução
+## Animação da introdução
 
-- `public/media/film/portrait.mp4` (540×960) para telas em pé e `landscape.mp4` (1280×720) para telas deitadas, com um quadro-chave em cada frame: assim o vídeo pula para qualquer ponto na hora, e o celular guarda só o quadro atual na memória. Os `.webm` são reserva para navegadores sem H.264.
-- O site baixa o vídeo inteiro antes de começar a rolar com ele; até lá aparece `poster-*.webp` (primeiro quadro), que também é a imagem fixa com movimento reduzido ou economia de dados.
-- `end-*.webp` (último quadro) é o fundo do epílogo e da tela de agendamento.
-- Para trocar, rode o script com os dois vídeos novos (8 s, 24 fps funcionam bem; pense o movimento de câmera como uma jornada do salão até a bancada).
+- `public/media/frames/portrait/000–071.webp` (540×960, ~2 MB no total) para telas em pé e `landscape/` (1280×720) para telas deitadas.
+- O site baixa os quadros como arquivos pequenos e só decodifica os que estão perto da posição da rolagem (mais um a cada 8), por isso a memória fica baixa mesmo no celular. Entre dois quadros vizinhos ele faz uma fusão suave.
+- Usamos imagens e não vídeo porque no iPhone e nos navegadores internos do Instagram/WhatsApp o vídeo não carrega sem um toque.
+- `poster-*.webp` (primeiro quadro) aparece na hora e é a imagem fixa com movimento reduzido. `end-*.webp` (último quadro) é o fundo do epílogo e da tela de agendamento.
+- Para trocar, rode o script com os dois vídeos novos (8 s funcionam bem; pense o movimento de câmera como uma jornada do salão até a bancada).
 
 ## Regras
 

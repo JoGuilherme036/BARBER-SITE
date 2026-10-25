@@ -1,13 +1,18 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { proById, serviceById, team } from '@/config/catalog';
+import { proById, serviceById, services, team } from '@/config/catalog';
 import { site } from '@/config/site';
 import { adminApi, bookingApi } from '@/booking/api';
 import { clearAdminSession } from '@/booking/cloudflareApi';
 import { DEMO_ADMIN_PASSWORD } from '@/booking/localApi';
 import { notifyScheduleChanged, useScheduleVersion } from '@/booking/sync';
-import { BookingError, type Block, type Booking, type BookingStatus } from '@/booking/types';
+import { BookingError, type Block, type Booking, type BookingStatus, type BusyMap } from '@/booking/types';
+import { eligiblePros, slotsFor, summarize } from '@/booking/availability';
+import { toggleService } from '@/booking/selection';
+import { maskBrPhone } from '@/lib/phone';
+import { whatsappLink, waMessages } from '@/lib/whatsapp';
+import { formatDuration } from '@/lib/format';
 import { formatPrice } from '@/lib/format';
 import { formatRanges } from '@/lib/hours';
 import { addDays, dayOfMonth, formatDayLong, formatDayShort, shopNow, weekdayOf } from '@/lib/time';
@@ -105,8 +110,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [filter, setFilter] = useState<string>('all');
   const [data, setData] = useState<{ bookings: Booking[]; blocks: Block[] } | null>(null);
   const [error, setError] = useState(false);
-  const [sheet, setSheet] = useState(false);
-  const { tick, syncedAt } = useScheduleVersion(5_000);
+  const [sheet, setSheet] = useState<'block' | 'book' | null>(null);
+  const { tick, syncedAt, live } = useScheduleVersion();
 
   const load = useCallback(async () => {
     try {
@@ -139,23 +144,29 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   return (
     <div className="min-h-[100svh] pb-32">
       <header className="sticky top-0 z-30 border-b hairline bg-ink/95 pt-[env(safe-area-inset-top)]">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4">
-          <div className="flex items-center gap-3">
-            <Monogram className="h-9 w-9" />
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <Monogram className="hidden h-9 w-9 sm:block" />
             <div className="leading-tight">
               <p className="font-display text-lg italic">Agenda</p>
               <p className="flex items-center gap-1.5 text-[11px] text-muted" aria-live="polite">
-                <span className={`h-1.5 w-1.5 rounded-full ${syncedAt ? 'bg-emerald-400' : 'bg-muted'}`} />
-                {syncedAt ? `Sincronizado ${clockSec.format(syncedAt)}` : 'Conectando…'}
+                <span className="relative flex h-1.5 w-1.5">
+                  {live && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />}
+                  <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${live || syncedAt ? 'bg-emerald-400' : 'bg-muted'}`} />
+                </span>
+                {live ? 'Ao vivo' : syncedAt ? `Atualizado ${clockSec.format(syncedAt)}` : 'Conectando…'}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setSheet(true)} className="inline-flex min-h-11 items-center gap-2 rounded-full bg-brass px-4 text-[14px] font-semibold text-ink">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <button onClick={() => setSheet('book')} className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-brass/60 px-3.5 text-[13px] font-semibold text-brass-light sm:px-4">
+              <Icon name="calendar" className="h-4 w-4" /> Agendar
+            </button>
+            <button onClick={() => setSheet('block')} className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-brass px-3.5 text-[13px] font-semibold text-ink sm:px-4">
               <Icon name="close" className="h-4 w-4 rotate-45" /> Bloquear
             </button>
-            <button onClick={onLogout} className="min-h-11 rounded-full border hairline px-4 text-[13px]">
-              Sair
+            <button onClick={onLogout} className="grid h-11 w-11 place-items-center rounded-full border hairline" aria-label="Sair do painel">
+              <Icon name="arrowUpRight" className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -250,7 +261,10 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         </div>
       </main>
 
-      <AnimatePresence>{sheet && <BlockSheet day={day} onClose={() => setSheet(false)} onCreated={changed} />}</AnimatePresence>
+      <AnimatePresence>
+        {sheet === 'block' && <BlockSheet day={day} onClose={() => setSheet(null)} onCreated={changed} />}
+        {sheet === 'book' && <BookSheet day={day} onClose={() => setSheet(null)} onCreated={changed} />}
+      </AnimatePresence>
     </div>
   );
 }
@@ -351,6 +365,198 @@ function BlockRow({ block: b, onRemoved, compact }: { block: Block; onRemoved: (
   );
 }
 
+function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <motion.div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/70 md:items-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+      <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        onClick={(e) => e.stopPropagation()}
+        initial={{ y: 40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 40, opacity: 0 }}
+        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+        className="max-h-[92svh] w-full max-w-lg overflow-y-auto rounded-t-3xl border hairline bg-ink-2 p-6 pb-[max(env(safe-area-inset-bottom),24px)] md:rounded-3xl"
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="display text-3xl">{title}</h2>
+          <button onClick={onClose} className="grid h-11 w-11 place-items-center rounded-full border hairline" aria-label="Fechar">
+            <Icon name="close" />
+          </button>
+        </div>
+        {children}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+const shopRules = { ...site.booking, minLeadMin: 0 };
+
+/** Book for a client who called or walked in: no minimum notice, phone optional. */
+function BookSheet({ day, onClose, onCreated }: { day: string; onClose: () => void; onCreated: () => void }) {
+  const [serviceIds, setServiceIds] = useState<string[]>([services[0].id]);
+  const [proId, setProId] = useState<string>('any');
+  const [date, setDate] = useState(day < shopNow().day ? shopNow().day : day);
+  const [time, setTime] = useState<string | null>(null);
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [busy, setBusy] = useState<BusyMap | null>(null);
+  const [state, setState] = useState<'idle' | 'saving' | 'taken' | 'invalid' | 'error'>('idle');
+  const [done, setDone] = useState<Booking | null>(null);
+  const [key] = useState(() => crypto.randomUUID?.() ?? String(Math.random()).slice(2));
+  const { tick } = useScheduleVersion();
+
+  useEffect(() => {
+    let alive = true;
+    bookingApi
+      .getBusy(date)
+      .then((b) => alive && setBusy(b))
+      .catch(() => alive && setBusy({}));
+    return () => {
+      alive = false;
+    };
+  }, [date, tick]);
+
+  const eligible = eligiblePros(serviceIds);
+  const slots = busy && serviceIds.length ? slotsFor(serviceIds, proId, date, busy, new Date(), shopRules) : [];
+  const sum = summarize(serviceIds);
+
+  useEffect(() => {
+    if (proId !== 'any' && !eligible.some((p) => p.id === proId)) setProId('any');
+  }, [serviceIds]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (time && busy && !slots.some((s) => s.time === time)) setTime(null);
+  }, [busy, serviceIds, proId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!time) return;
+    setState('saving');
+    try {
+      const b = await adminApi.book({ idempotencyKey: key, serviceIds, proId, day: date, time, customer: { name, phone } });
+      setDone(b);
+      setState('idle');
+      onCreated();
+    } catch (err) {
+      const code = err instanceof BookingError ? err.code : 'network';
+      setState(code === 'slot_taken' ? 'taken' : code === 'invalid' ? 'invalid' : 'error');
+      if (code === 'slot_taken') setTime(null);
+    }
+  };
+
+  if (done) {
+    const pro = proById(done.proId)?.name ?? '';
+    const servicesText = done.serviceIds.map((id) => serviceById(id)?.name).join(' + ');
+    return (
+      <Sheet title="Agendado" onClose={onClose}>
+        <div className="mt-5 space-y-4" aria-live="polite">
+          <p className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-[14px]">
+            {done.customer.name} · {formatDayShort(done.day)} {dayOfMonth(done.day)} às {done.time} com {pro}. Já aparece em todos os aparelhos.
+          </p>
+          <p className="text-[13px] text-muted">
+            Código <span className="font-mono text-ivory">{done.code}</span> · {servicesText} · {formatPrice(done.totalCents)}
+          </p>
+          {done.customer.phone && (
+            <a
+              href={whatsappLink(waMessages.booking({ code: done.code, date: formatDayLong(done.day), time: done.time, pro, services: servicesText })).replace(/wa\.me\/\d+/, `wa.me/55${done.customer.phone}`)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-brass/60 text-[14px] font-semibold text-brass-light"
+            >
+              <Icon name="whatsapp" className="h-4 w-4" /> Enviar confirmação ao cliente
+            </a>
+          )}
+          <button onClick={onClose} className="min-h-12 w-full rounded-full bg-brass text-[15px] font-semibold text-ink">
+            Pronto
+          </button>
+        </div>
+      </Sheet>
+    );
+  }
+
+  return (
+    <Sheet title="Agendar cliente" onClose={onClose}>
+      <form onSubmit={submit} className="mt-5 space-y-5">
+        <fieldset>
+          <legend className="text-sm font-medium">Serviços</legend>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {services.map((s) => {
+              const on = serviceIds.includes(s.id);
+              return (
+                <button type="button" key={s.id} onClick={() => setServiceIds(toggleService(serviceIds, s.id))} aria-pressed={on} className={`min-h-10 rounded-full border px-3.5 text-[12px] font-semibold ${on ? 'border-brass bg-brass text-ink' : 'hairline'}`}>
+                  {s.name}
+                </button>
+              );
+            })}
+          </div>
+          {sum.services.length > 0 && <p className="mt-2 text-[12px] text-muted">{formatDuration(sum.durationMin)} · {formatPrice(sum.priceCents)}</p>}
+        </fieldset>
+
+        <fieldset>
+          <legend className="text-sm font-medium">Barbeiro</legend>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {[{ id: 'any', name: 'Primeiro livre' }, ...eligible].map((p) => (
+              <button type="button" key={p.id} onClick={() => setProId(p.id)} aria-pressed={proId === p.id} className={`min-h-10 rounded-full border px-3.5 text-[12px] font-semibold ${proId === p.id ? 'border-brass bg-brass text-ink' : 'hairline'}`}>
+                {p.name}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+
+        <label className="block">
+          <span className="text-sm font-medium">Dia</span>
+          <input id="book-date" type="date" value={date} min={shopNow().day} onChange={(e) => (setDate(e.target.value), setTime(null))} className={field} required />
+        </label>
+
+        <fieldset>
+          <legend className="text-sm font-medium">Horário livre</legend>
+          {!busy ? (
+            <p className="mt-2 text-[13px] text-muted">Carregando horários…</p>
+          ) : slots.length === 0 ? (
+            <p className="mt-2 rounded-xl border border-dashed hairline px-3 py-3 text-[13px] text-muted">Nenhum horário livre nesse dia para esses serviços.</p>
+          ) : (
+            <div className="mt-2 grid max-h-48 grid-cols-4 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-5">
+              {slots.map((s) => (
+                <button type="button" key={s.time} onClick={() => setTime(s.time)} aria-pressed={time === s.time} className={`min-h-10 rounded-lg border text-[13px] font-semibold tabular-nums ${time === s.time ? 'border-brass bg-brass text-ink' : 'hairline'}`}>
+                  {s.time}
+                </button>
+              ))}
+            </div>
+          )}
+        </fieldset>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className="text-sm font-medium">Nome do cliente</span>
+            <input id="book-name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="off" className={field} required minLength={2} />
+          </label>
+          <label className="block">
+            <span className="text-sm font-medium">
+              WhatsApp <span className="text-muted">(opcional)</span>
+            </span>
+            <input id="book-phone" type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(maskBrPhone(e.target.value))} placeholder="(11) 91234-5678" className={field} />
+          </label>
+        </div>
+
+        <div aria-live="polite" className="text-[13px] text-danger">
+          {state === 'taken' && 'Esse horário acabou de ser ocupado. Escolha outro.'}
+          {state === 'invalid' && 'Confira o nome e o telefone (com DDD).'}
+          {state === 'error' && 'Não foi possível salvar. Verifique a conexão.'}
+        </div>
+        <button type="submit" disabled={!time || !serviceIds.length || name.trim().length < 2 || state === 'saving'} className="min-h-12 w-full rounded-full bg-brass text-[15px] font-semibold text-ink disabled:opacity-40">
+          {state === 'saving' ? 'Salvando…' : time ? `Agendar às ${time}` : 'Escolha um horário'}
+        </button>
+      </form>
+    </Sheet>
+  );
+}
+
 function BlockSheet({ day, onClose, onCreated }: { day: string; onClose: () => void; onCreated: () => void }) {
   const [proId, setProId] = useState<string>('all');
   const [mode, setMode] = useState<'day' | 'time'>('time');
@@ -361,12 +567,6 @@ function BlockSheet({ day, onClose, onCreated }: { day: string; onClose: () => v
   const [reason, setReason] = useState('');
   const [state, setState] = useState<'idle' | 'saving' | 'error'>('idle');
   const [result, setResult] = useState<{ created: number; conflicts: Booking[] } | null>(null);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
 
   const invalid = to < from || (mode === 'time' && endTime <= startTime);
   const submit = async (e: FormEvent) => {
@@ -390,24 +590,7 @@ function BlockSheet({ day, onClose, onCreated }: { day: string; onClose: () => v
   };
 
   return (
-    <motion.div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/70 md:items-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
-      <motion.div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Bloquear horário"
-        onClick={(e) => e.stopPropagation()}
-        initial={{ y: 40, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 40, opacity: 0 }}
-        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-        className="max-h-[92svh] w-full max-w-lg overflow-y-auto rounded-t-3xl border hairline bg-ink-2 p-6 pb-[max(env(safe-area-inset-bottom),24px)] md:rounded-3xl"
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="display text-3xl">Bloquear</h2>
-          <button onClick={onClose} className="grid h-11 w-11 place-items-center rounded-full border hairline" aria-label="Fechar">
-            <Icon name="close" />
-          </button>
-        </div>
+    <Sheet title="Bloquear" onClose={onClose}>
 
         {result ? (
           <div className="mt-5 space-y-4" aria-live="polite">
@@ -507,7 +690,6 @@ function BlockSheet({ day, onClose, onCreated }: { day: string; onClose: () => v
             </button>
           </form>
         )}
-      </motion.div>
-    </motion.div>
+    </Sheet>
   );
 }

@@ -74,4 +74,6 @@ export interface AdminApi {
   addBlock(block: NewBlock): Promise<{ created: number; conflicts: Booking[] }>;
   removeBlock(id: number): Promise<void>;
   setStatus(code: string, status: Exclude<BookingStatus, 'confirmed'>): Promise<Booking>;
+  /** Book on behalf of a client (phone or walk-in): no minimum notice, phone optional. */
+  book(req: CreateBookingRequest): Promise<Booking>;
 }

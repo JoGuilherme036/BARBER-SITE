@@ -1,7 +1,7 @@
 import { useEffect, useState, type PointerEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { team, type Professional } from '@/config/catalog';
-import { bookingApi } from '@/booking/api';
+import { cachedBusy } from '@/booking/busyCache';
 import { useScheduleVersion } from '@/booking/sync';
 import { proSlots } from '@/booking/availability';
 import { addDays, shopNow } from '@/lib/time';
@@ -14,7 +14,7 @@ import { Icon } from '../ui/Icon';
 /** First free 45-min slot today or in the next days, computed from real availability. */
 function useNextSlots() {
   const [next, setNext] = useState<Record<string, string>>({});
-  const { tick } = useScheduleVersion(30_000);
+  const { tick } = useScheduleVersion({ fallbackMs: 30_000 });
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -23,7 +23,7 @@ function useNextSlots() {
       const result: Record<string, string> = {};
       for (let i = 0; i < 4 && Object.keys(result).length < team.length; i++) {
         const day = addDays(today, i);
-        const busy = await bookingApi.getBusy(day).catch(() => null);
+        const busy = await cachedBusy(day).catch(() => null);
         if (!busy) return;
         for (const p of team) {
           if (result[p.id]) continue;

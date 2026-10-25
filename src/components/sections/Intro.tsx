@@ -1,15 +1,42 @@
 import { motion, useScroll, useTransform, type MotionValue } from 'framer-motion';
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useMotionPref } from '@/hooks/useMotionPref';
 import { useOpenStatus } from '@/hooks/useMisc';
 import { statusLabel } from '@/lib/hours';
 import { track } from '@/lib/analytics';
+import { relativeDayName } from '@/lib/time';
+import { cachedBusy } from '@/booking/busyCache';
+import { bookableDays, slotsFor } from '@/booking/availability';
+import { useScheduleVersion } from '@/booking/sync';
 import { ScrollFilm } from '../background/ScrollFilm';
 import { LinkButton, Button } from '../ui/Button';
 import { Icon } from '../ui/Icon';
 import { scrollToSection } from '../layout/nav';
 
 const ease = [0.16, 1, 0.3, 1] as const;
+const QUICK_SERVICE = 'corte-assinatura';
+
+/** First free start time for the signature cut, so the opening screen can offer a one-tap booking. */
+function useNextSlot() {
+  const [next, setNext] = useState<{ day: string; time: string } | null>(null);
+  const { tick } = useScheduleVersion({ fallbackMs: 30_000 });
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const now = new Date();
+      for (const d of bookableDays([QUICK_SERVICE], 'any', now).filter((x) => x.works).slice(0, 7)) {
+        const slot = slotsFor([QUICK_SERVICE], 'any', d.day, await cachedBusy(d.day), now)[0];
+        if (slot) return alive && setNext({ day: d.day, time: slot.time });
+      }
+      if (alive) setNext(null);
+    })().catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [tick]);
+  return next;
+}
 
 // Section scroll fraction where the film ends and the next section starts covering it.
 // Mobile: 250svh tall, 50svh overlap → 100/150. Desktop: 270vh, 60vh overlap → 110/170.
@@ -32,6 +59,7 @@ export function Intro() {
   const { reduced } = useMotionPref();
   const status = useOpenStatus();
   const label = statusLabel(status);
+  const next = useNextSlot();
   const { scrollYProgress: p } = useScroll({ target: ref, offset: ['start start', 'end end'] });
 
   // The next section overlaps the end of this one (negative margin in LiveBoard) and slides over
@@ -62,10 +90,10 @@ export function Intro() {
         <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-ink/85 to-transparent" />
 
         <motion.div
-          className="container-x relative flex h-full flex-col justify-end pb-10 pt-28 md:justify-center md:pb-16"
+          className="container-x relative flex h-full flex-col justify-end pb-8 pt-24 short:pb-6 md:justify-center md:pb-16"
           style={reduced ? undefined : { opacity: heroOpacity, y: heroY, pointerEvents: heroEvents }}
         >
-          <motion.p {...fade(0.1)} className="mb-6 inline-flex w-fit items-center gap-2.5 rounded-full border hairline bg-ink/70 px-3.5 py-2 text-[12px]">
+          <motion.p {...fade(0.1)} className="mb-6 inline-flex w-fit items-center gap-2.5 rounded-full border hairline bg-ink/70 px-3.5 py-2 text-[12px] short:mb-4">
             <span className="relative flex h-2 w-2">
               {status.open && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />}
               <span className={`relative inline-flex h-2 w-2 rounded-full ${status.open ? 'bg-emerald-400' : 'bg-muted'}`} />
@@ -74,7 +102,7 @@ export function Intro() {
             <span className="text-ivory/70">· {label.detail}</span>
           </motion.p>
 
-          <h1 id="hero-title" className="display text-[clamp(3.3rem,15.5vw,9.5rem)] [text-shadow:0_4px_40px_rgb(0_0_0/0.55)]">
+          <h1 id="hero-title" className="display text-[clamp(3.3rem,15.5vw,9.5rem)] [text-shadow:0_4px_40px_rgb(0_0_0/0.55)] short:text-[clamp(2.8rem,13vw,5.5rem)] tiny:text-[clamp(2.4rem,11.5vw,4rem)]">
             <span className="block overflow-hidden pb-[0.06em]"><motion.span className="block" {...line(0.15)}>Precisão</motion.span></span>
             <span className="block overflow-hidden pb-[0.06em]"><motion.span className="block" {...line(0.25)}>sob luz</motion.span></span>
             <span className="block overflow-hidden pb-[0.1em]">
@@ -82,18 +110,40 @@ export function Intro() {
             </span>
           </h1>
 
-          <motion.p {...fade(0.55)} className="mt-5 max-w-md text-[15.5px] leading-relaxed text-ivory sm:text-base">
+          <motion.p {...fade(0.55)} className="mt-5 max-w-md text-[15.5px] leading-relaxed text-ivory short:mt-3 short:text-[14.5px] sm:text-base tiny:hidden">
             Corte, barba e ritual de toalha quente num ateliê feito para a noite da cidade. Hora marcada, sem fila, sem pressa.
           </motion.p>
 
-          <motion.div {...fade(0.65)} className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <LinkButton to="/agendar" size="lg" iconRight="arrowRight" onClick={() => track('cta_book_click', { from: 'hero' })}>
+          <motion.div {...fade(0.65)} className="mt-7 flex gap-2.5 short:mt-5 sm:gap-3">
+            <LinkButton to="/agendar" size="lg" iconRight="arrowRight" className="flex-1 !px-5 sm:flex-none sm:!px-7" onClick={() => track('cta_book_click', { from: 'hero' })}>
               Agendar horário
             </LinkButton>
-            <Button variant="ghost" size="lg" className="!bg-ink/60" onClick={() => scrollToSection('servicos', reduced)}>
-              Ver serviços e preços
+            <Button variant="ghost" size="lg" className="!bg-ink/60 !px-5 sm:!px-7" onClick={() => scrollToSection('servicos', reduced)}>
+              <span className="sm:hidden">Serviços</span>
+              <span className="hidden sm:inline">Ver serviços e preços</span>
             </Button>
           </motion.div>
+
+          {next && (
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease }}>
+              <Link
+                to={`/agendar?servico=${QUICK_SERVICE}&dia=${next.day}&hora=${next.time}`}
+                onClick={() => track('cta_book_click', { from: 'hero_next_slot' })}
+                className="group mt-4 inline-flex min-h-11 flex-wrap items-center gap-x-2.5 text-[13.5px] text-ivory/85 short:mt-2"
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brass opacity-60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-brass" />
+                </span>
+                <span className="tiny:hidden">Próximo horário livre:</span>
+                <span className="hidden tiny:inline">Livre</span>
+                <span className="font-semibold text-brass-light underline decoration-brass/40 underline-offset-4 group-hover:decoration-brass">
+                  {relativeDayName(next.day).toLowerCase()} às {next.time}
+                </span>
+                <Icon name="arrowRight" className="h-4 w-4 text-brass transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            </motion.div>
+          )}
         </motion.div>
 
         {!reduced && (

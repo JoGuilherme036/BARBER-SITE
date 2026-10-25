@@ -109,3 +109,14 @@ describe('blocks, closures and sync version (demo adapter)', () => {
     await expect(api.admin.login('demo')).resolves.toBeUndefined();
   });
 });
+
+describe('shop-side booking (admin panel)', () => {
+  it('books walk-ins without the online minimum notice and without a phone', async () => {
+    const api = createLocalApi(memoryStorage(), { latencyMs: 0, now: () => shopInstant('2026-11-03', '09:50') });
+    // 10:00 is inside the 60-min online notice: refused online, accepted for the shop.
+    await expect(api.create({ ...base, time: '10:00', proId: 'rafael', idempotencyKey: 'w1' })).rejects.toMatchObject({ code: 'slot_taken' });
+    const b = await api.admin.book({ ...base, time: '10:00', proId: 'rafael', idempotencyKey: 'w2', customer: { name: 'Walk-in', phone: '' } });
+    expect(b.proId).toBe('rafael');
+    expect(b.customer.phone).toBe('');
+  });
+});

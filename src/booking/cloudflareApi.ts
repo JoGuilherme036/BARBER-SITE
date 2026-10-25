@@ -1,7 +1,7 @@
 import { normalizeBrPhone } from '@/lib/phone';
 import { BookingError, type AdminApi, type Booking, type BookingApi, type BookingErrorCode, type BusyMap, type DayClosures } from './types';
 
-// LIVE adapter: talks to the Cloudflare Pages Functions in functions/api (D1 database).
+// LIVE adapter: talks to the Cloudflare Worker API in server/ (D1 database).
 
 const KNOWN: BookingErrorCode[] = ['slot_taken', 'invalid', 'not_found', 'too_late', 'unauthorized'];
 const ADMIN_KEY = 'rb.admin.token';
@@ -47,6 +47,7 @@ export function createCloudflareApi(base = ''): BookingApi & { admin: AdminApi }
       await request(base, `/api/admin/blocks/${id}`, { ...authed(), method: 'DELETE' });
     },
     setStatus: (code, status) => request(base, `/api/admin/bookings/${code}/status`, { ...authed(), method: 'POST', body: JSON.stringify({ status }) }),
+    book: (req) => request<Booking>(base, '/api/admin/bookings', { ...authed(), method: 'POST', body: JSON.stringify(req) }),
   };
 
   return {

@@ -51,6 +51,52 @@ export function createLocalApi(storage: StorageLike, opts: { latencyMs?: number;
     return code;
   };
 
+  async function createBooking(req: CreateBookingRequest, byShop: boolean): Promise<Booking> {
+    await wait();
+    const store = read();
+    const existing = store.idempotency[req.idempotencyKey];
+    if (existing) return store.bookings.find((b) => b.code === existing)!;
+
+    const name = req.customer.name.trim();
+    const phoneOk = isValidBrPhone(req.customer.phone) || (byShop && req.customer.phone.replace(/\D/g, '') === '');
+    if (name.length < 2 || !phoneOk) throw new BookingError('invalid');
+    const { durationMin, priceCents, services } = summarize(req.serviceIds);
+    if (!services.length) throw new BookingError('invalid');
+
+    // Re-validate at "commit time": the slot must still be free for the chosen professional.
+    const busy = busyFor(store, req.day);
+    const candidates = eligiblePros(req.serviceIds).filter((p) => req.proId === 'any' || p.id === req.proId);
+    const rules = byShop ? { ...site.booking, minLeadMin: 0 } : site.booking;
+    const pro = candidates.find((p) => proSlots(p, req.day, durationMin, busy[p.id] ?? [], now(), rules).includes(req.time));
+    if (!pro) throw new BookingError('slot_taken');
+
+    const start = shopInstant(req.day, req.time);
+    const end = new Date(start.getTime() + durationMin * 60_000);
+    const interval = { start: start.getTime(), end: end.getTime() };
+    if ((busy[pro.id] ?? []).some((b) => overlaps(interval, b, site.booking.bufferMin * 60_000))) {
+      throw new BookingError('slot_taken');
+    }
+
+    const booking: Booking = {
+      code: newCode(store),
+      status: 'confirmed',
+      day: req.day,
+      time: req.time,
+      start: start.toISOString(),
+      end: end.toISOString(),
+      proId: pro.id,
+      serviceIds: req.serviceIds,
+      durationMin,
+      totalCents: priceCents,
+      customer: { ...req.customer, name, phone: normalizeBrPhone(req.customer.phone) },
+      createdAt: now().toISOString(),
+    };
+    store.bookings.push(booking);
+    store.idempotency[req.idempotencyKey] = booking.code;
+    write(store);
+    return booking;
+  }
+
   const strip = ({ start: _s, end: _e, ...b }: StoredBlock): Block => b;
 
   const admin: AdminApi = {
@@ -96,6 +142,7 @@ export function createLocalApi(storage: StorageLike, opts: { latencyMs?: number;
       s.blocks = s.blocks.filter((b) => b.id !== id);
       write(s);
     },
+    book: (req) => createBooking(req, true),
     async setStatus(code, status) {
       await wait();
       const s = read();
@@ -130,49 +177,7 @@ export function createLocalApi(storage: StorageLike, opts: { latencyMs?: number;
       return out;
     },
 
-    async create(req: CreateBookingRequest) {
-      await wait();
-      const store = read();
-      const existing = store.idempotency[req.idempotencyKey];
-      if (existing) return store.bookings.find((b) => b.code === existing)!;
-
-      const name = req.customer.name.trim();
-      if (name.length < 2 || !isValidBrPhone(req.customer.phone)) throw new BookingError('invalid');
-      const { durationMin, priceCents, services } = summarize(req.serviceIds);
-      if (!services.length) throw new BookingError('invalid');
-
-      // Re-validate at "commit time": the slot must still be free for the chosen professional.
-      const busy = busyFor(store, req.day);
-      const candidates = eligiblePros(req.serviceIds).filter((p) => req.proId === 'any' || p.id === req.proId);
-      const pro = candidates.find((p) => proSlots(p, req.day, durationMin, busy[p.id] ?? [], now()).includes(req.time));
-      if (!pro) throw new BookingError('slot_taken');
-
-      const start = shopInstant(req.day, req.time);
-      const end = new Date(start.getTime() + durationMin * 60_000);
-      const interval = { start: start.getTime(), end: end.getTime() };
-      if ((busy[pro.id] ?? []).some((b) => overlaps(interval, b, site.booking.bufferMin * 60_000))) {
-        throw new BookingError('slot_taken');
-      }
-
-      const booking: Booking = {
-        code: newCode(store),
-        status: 'confirmed',
-        day: req.day,
-        time: req.time,
-        start: start.toISOString(),
-        end: end.toISOString(),
-        proId: pro.id,
-        serviceIds: req.serviceIds,
-        durationMin,
-        totalCents: priceCents,
-        customer: { ...req.customer, name, phone: normalizeBrPhone(req.customer.phone) },
-        createdAt: now().toISOString(),
-      };
-      store.bookings.push(booking);
-      store.idempotency[req.idempotencyKey] = booking.code;
-      write(store);
-      return booking;
-    },
+    create: (req: CreateBookingRequest) => createBooking(req, false),
 
     async find(code, phone) {
       await wait();

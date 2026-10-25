@@ -3,7 +3,7 @@ import { openStatus, statusLabel } from '@/lib/hours';
 import { isValidBrPhone, maskBrPhone, normalizeBrPhone } from '@/lib/phone';
 import { whatsappLink } from '@/lib/whatsapp';
 import { buildIcs } from '@/lib/ics';
-import { shopInstant } from '@/lib/time';
+import { relativeDayName, shopInstant } from '@/lib/time';
 
 describe('openStatus (shop time zone)', () => {
   it('is open during hours and reports closing time', () => {
@@ -45,5 +45,14 @@ describe('links', () => {
     const ics = buildIcs({ uid: 'RB-1', start: shopInstant('2026-11-03', '10:00'), end: shopInstant('2026-11-03', '10:45'), title: 'Corte', description: 'x' });
     expect(ics).toContain('DTSTART:20261103T130000Z');
     expect(ics).toContain('DTEND:20261103T134500Z');
+  });
+});
+
+describe('relativeDayName', () => {
+  it('names today, tomorrow and later days', () => {
+    const now = shopInstant('2026-11-03', '10:00');
+    expect(relativeDayName('2026-11-03', now)).toBe('Hoje');
+    expect(relativeDayName('2026-11-04', now)).toBe('Amanhã');
+    expect(relativeDayName('2026-11-06', now)).toBe('Sexta');
   });
 });

@@ -20,7 +20,8 @@ export default {
         expo: 'cubic-bezier(0.16, 1, 0.3, 1)',
         quart: 'cubic-bezier(0.76, 0, 0.24, 1)',
       },
-      screens: { xs: '380px' },
+      // Height-based variants for phones with short viewports (browser bars included).
+      screens: { xs: '380px', short: { raw: '(max-height: 760px)' }, tiny: { raw: '(max-height: 600px)' } },
     },
   },
   plugins: [],

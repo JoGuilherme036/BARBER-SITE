@@ -126,7 +126,7 @@ const periods = [
 export function TimeStep({ draft, update, refreshKey, onSlotLost }: StepProps & { refreshKey: number; onSlotLost?: (time: string) => void }) {
   const proId = draft.proId ?? 'any';
   // Bookings and blocks made on other devices arrive here without a reload.
-  const { tick } = useScheduleVersion(10_000);
+  const { tick } = useScheduleVersion();
   const now = useMemo(() => new Date(), [refreshKey, tick]); // eslint-disable-line react-hooks/exhaustive-deps
   const [closures, setClosures] = useState<DayClosures>();
   const days = useMemo(() => bookableDays(draft.serviceIds, proId, now, undefined, closures), [draft.serviceIds, proId, now, closures]);

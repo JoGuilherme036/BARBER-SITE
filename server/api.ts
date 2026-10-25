@@ -1,4 +1,4 @@
-// Schedule API for Cloudflare Pages Functions + D1.
+// Schedule API for the Cloudflare Worker (server/worker.ts) + D1.
 // Availability rules are the same modules the site uses, so client and server always agree;
 // the server re-checks everything and the insert itself is atomic (INSERT … WHERE NOT EXISTS).
 import { site } from '../src/config/site';
@@ -7,7 +7,7 @@ import { eligiblePros, proSlots, summarize, type BusyMap } from '../src/booking/
 import { isValidBrPhone, normalizeBrPhone } from '../src/lib/phone';
 import { addDays, shopInstant } from '../src/lib/time';
 import type { Block, Booking, BookingStatus, DayClosures } from '../src/booking/types';
-import type { D1Database, Env } from './d1';
+import type { D1Database, Env, ExecutionContext } from './d1';
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -124,7 +124,7 @@ async function requireAdmin(request: Request, env: Env) {
 
 /* ---------------- public ---------------- */
 
-async function createBooking(request: Request, db: D1Database) {
+async function createBooking(request: Request, db: D1Database, opts: { admin?: boolean } = {}) {
   type Body = {
     idempotencyKey?: unknown;
     serviceIds?: unknown;
@@ -144,7 +144,9 @@ async function createBooking(request: Request, db: D1Database) {
   const email = typeof body.customer?.email === 'string' ? body.customer.email.trim().slice(0, 120) : '';
   const notes = typeof body.customer?.notes === 'string' ? body.customer.notes.slice(0, 280) : '';
 
-  if (key.length < 8 || key.length > 100 || !DAY.test(day) || !TIME.test(time) || name.length < 2 || name.length > 80 || !isValidBrPhone(phone)) {
+  // The shop may book walk-ins without a phone; online clients always need one.
+  const phoneOk = isValidBrPhone(phone) || (opts.admin && phone.replace(/\D/g, '') === '');
+  if (key.length < 8 || key.length > 100 || !DAY.test(day) || !TIME.test(time) || name.length < 2 || name.length > 80 || !phoneOk) {
     throw new HttpError(400, 'invalid');
   }
   if (!serviceIds.length || serviceIds.length > 6 || serviceIds.some((id) => !serviceById(id))) throw new HttpError(400, 'invalid');
@@ -157,12 +159,14 @@ async function createBooking(request: Request, db: D1Database) {
   const busy = await busyForDay(db, day);
   const now = new Date();
   const candidates = eligiblePros(serviceIds).filter((p) => proId === 'any' || p.id === proId);
+  // Walk-ins booked by the shop skip the online minimum notice.
+  const rules = opts.admin ? { ...site.booking, minLeadMin: 0 } : site.booking;
   const start = shopInstant(day, time).getTime();
   const end = start + durationMin * 60_000;
   const busyUntil = end + site.booking.bufferMin * 60_000;
 
   for (const pro of candidates) {
-    if (!proSlots(pro, day, durationMin, busy[pro.id] ?? [], now).includes(time)) continue;
+    if (!proSlots(pro, day, durationMin, busy[pro.id] ?? [], now, rules).includes(time)) continue;
     const code = newCode();
     const stamp = Date.now();
     try {
@@ -311,10 +315,29 @@ async function setStatus(code: string, request: Request, db: D1Database) {
 
 /* ---------------- router ---------------- */
 
-export async function handle(request: Request, env: Env): Promise<Response> {
+// Requests that change the schedule; after a successful one, every open screen is told at once.
+const MUTATIONS = [/^POST \/api\/bookings$/, /^POST \/api\/admin\/bookings$/, /^POST \/api\/bookings\/cancel$/, /^POST \/api\/admin\/blocks$/, /^DELETE \/api\/admin\/blocks\/\d+$/, /^POST \/api\/admin\/bookings\/[^/]+\/status$/];
+
+async function broadcast(env: Env) {
+  if (!env.HUB) return;
+  const row = await env.DB.prepare("SELECT value FROM meta WHERE key = 'version'").first<{ value: number }>();
+  await env.HUB.get(env.HUB.idFromName('schedule')).fetch('https://hub/notify', {
+    method: 'POST',
+    body: JSON.stringify({ type: 'changed', version: row?.value ?? 0 }),
+  });
+}
+
+export async function handle(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
   try {
     // Await here so errors thrown inside any route are caught below.
-    return await route(request, env);
+    const response = await route(request, env);
+    const key = `${request.method} ${new URL(request.url).pathname.replace(/\/+$/, '')}`;
+    if (response.ok && MUTATIONS.some((m) => m.test(key))) {
+      const done = broadcast(env).catch((e) => console.error('broadcast failed', e));
+      if (ctx) ctx.waitUntil(done);
+      else await done;
+    }
+    return response;
   } catch (e) {
     if (e instanceof HttpError) return json({ error: e.code }, e.status);
     console.error(e);
@@ -349,6 +372,7 @@ async function route(request: Request, env: Env): Promise<Response> {
       if (method === 'GET' && path === '/api/admin/session') return json({ ok: true });
       if (method === 'GET' && path === '/api/admin/day') return adminDay(url, db);
       if (method === 'POST' && path === '/api/admin/blocks') return addBlock(request, db);
+      if (method === 'POST' && path === '/api/admin/bookings') return createBooking(request, db, { admin: true });
       const blockMatch = path.match(/^\/api\/admin\/blocks\/(\d+)$/);
       if (method === 'DELETE' && blockMatch) return removeBlock(Number(blockMatch[1]), db);
       const statusMatch = path.match(/^\/api\/admin\/bookings\/(RB-[A-Z0-9]{5})\/status$/);
