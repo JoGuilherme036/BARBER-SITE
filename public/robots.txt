@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /meu-agendamento
+
+Sitemap: https://rb-barbearia.example/sitemap.xml

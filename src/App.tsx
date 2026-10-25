@@ -1,0 +1,75 @@
+import { lazy, Suspense, useEffect } from 'react';
+import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { MotionConfig } from 'framer-motion';
+import { Header } from '@/components/layout/Header';
+import { Footer } from '@/components/layout/Footer';
+import { ActionBar } from '@/components/layout/ActionBar';
+import { ScrollProgress } from '@/components/layout/ScrollProgress';
+import { MotionPrefProvider, useMotionPref } from '@/hooks/useMotionPref';
+import Home from '@/pages/Home';
+
+const Booking = lazy(() => import('@/pages/Booking'));
+const ManageBooking = lazy(() => import('@/pages/ManageBooking'));
+const Experience3D = lazy(() => import('@/pages/Experience3D'));
+const Privacy = lazy(() => import('@/pages/Privacy'));
+const NotFound = lazy(() => import('@/pages/NotFound'));
+
+function ScrollToTop() {
+  const { pathname, hash } = useLocation();
+  useEffect(() => {
+    if (!hash) window.scrollTo(0, 0);
+  }, [pathname, hash]);
+  return null;
+}
+
+function PageFallback() {
+  return (
+    <div className="grid min-h-[100svh] place-items-center" role="status" aria-label="Carregando">
+      <span className="h-10 w-10 animate-spin rounded-full border-2 border-brass/20 border-t-brass" />
+    </div>
+  );
+}
+
+function Shell() {
+  const { reduced } = useMotionPref();
+  const { pathname } = useLocation();
+  const immersive = pathname.startsWith('/agendar') || pathname.startsWith('/experiencia-3d');
+  return (
+    <MotionConfig reducedMotion={reduced ? 'always' : 'never'}>
+      <a href="#conteudo" className="sr-only z-[70] rounded-full bg-brass px-4 py-2 text-ink focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
+        Pular para o conteúdo
+      </a>
+      <ScrollToTop />
+      {!immersive && (
+        <>
+          <ScrollProgress />
+          <Header />
+        </>
+      )}
+      <Suspense fallback={<PageFallback />}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/agendar" element={<Booking />} />
+          <Route path="/meu-agendamento" element={<ManageBooking />} />
+          <Route path="/experiencia-3d" element={<Experience3D />} />
+          <Route path="/privacidade" element={<Privacy />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
+      {!immersive && <Footer />}
+      <ActionBar />
+    </MotionConfig>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <MotionPrefProvider>
+        <div className="grain">
+          <Shell />
+        </div>
+      </MotionPrefProvider>
+    </BrowserRouter>
+  );
+}
